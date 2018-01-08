@@ -1,0 +1,15 @@
+{
+	"name": "nelson/resizer",
+	"require": {
+		"php": "^5.6",
+		"nette/caching": "^2.5",
+		"nette/utils": "^2.4",
+		"nette/http": "^2.4",
+		"imagine/imagine": "0.7.1"
+	},
+	"autoload": {
+		"psr-4": {
+			"Nelson\\Resizer\\": "src/"
+		}
+	}
+}
