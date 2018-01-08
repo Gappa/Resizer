@@ -1,13 +1,5 @@
 <?php
 
-/**
- * @package    Nelson
- * @subpackage Resizer
- * @author     Ondřej Pospíšil <ondrej.pospisil@minion.cz>
- * @author     Pavel Linhart <pavel.linhart@minion.cz>
- * @copyright  2017 Minion Interactive s.r.o.
- */
-
 namespace Nelson\Resizer;
 
 use Imagine\Image\Box;
