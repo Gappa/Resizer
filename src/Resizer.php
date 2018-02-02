@@ -120,7 +120,6 @@ class Resizer implements IResizer
 			$imageExists = true;
 
 			if (!is_file($imageOutputFilePath)) {
-				// $image            = $this->cache->call([$this->imagine, 'open'], $imagePathFull);
 				$image = $this->imagine->open($imagePathFull);
 				$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
 				$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
