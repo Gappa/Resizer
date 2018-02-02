@@ -124,7 +124,6 @@ class Resizer implements IResizer
 
 			// thumbnail doesn't exist, create it
 			if (!is_file($imageOutputFilePath)) {
-
 				// the file might be corrupted
 				try {
 					$image = $this->imagine->open($imagePathFull);
