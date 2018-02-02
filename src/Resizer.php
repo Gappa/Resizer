@@ -4,6 +4,7 @@ namespace Nelson\Resizer;
 
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Imagine\Exception\RuntimeException;
 use Nette\Caching\Cache;
 use Nette\Caching\IStorage;
 use Nette\Http\Request;
@@ -100,6 +101,7 @@ class Resizer implements IResizer
 			$params = 'x';
 		}
 
+		// filepath isn't even specified
 		if (empty($imagePath)) {
 			return null;
 		}
@@ -110,6 +112,7 @@ class Resizer implements IResizer
 		$cacheFileName = $params . '.' . $pathinfo['extension'];
 		$imageOutputFilePath = $this->getImageOutputDir($imagePathFull) . $cacheFileName;
 
+		// file doesn't exist
 		if (!is_file($imagePathFull)) {
 			$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
 			$imageOutputSize = ['width' => null, 'height' => null];
@@ -119,20 +122,31 @@ class Resizer implements IResizer
 			$geometry = Geometry::parseGeometry($params);
 			$imageExists = true;
 
+			// thumbnail doesn't exist, create it
 			if (!is_file($imageOutputFilePath)) {
-				$image = $this->imagine->open($imagePathFull);
-				$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
-				$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
 
-				$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
-				if (Geometry::isCrop($geometry)) {
-					$image->crop(Geometry::getCropPoint($geometry, $imageOutputSize), new Box($geometry['width'], $geometry['height']));
+				// the file might be corrupted
+				try {
+					$image = $this->imagine->open($imagePathFull);
+					$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
+					$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
+
+					$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
+					if (Geometry::isCrop($geometry)) {
+						$image->crop(
+							Geometry::getCropPoint($geometry, $imageOutputSize),
+							new Box($geometry['width'], $geometry['height'])
+						);
+					}
+
+					// remove all comments & metadata
+					$image->strip();
+					$image->save($imageOutputFilePath, $this->options);
+				} catch (RuntimeException $e) {
+					$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
+					$imageOutputSize = ['width' => null, 'height' => null];
+					$imageExists = false;
 				}
-
-				// remove all comments & metadata
-				$image->strip();
-
-				$image->save($imageOutputFilePath, $this->options);
 			} else {
 				$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
 			}
@@ -142,6 +156,7 @@ class Resizer implements IResizer
 			}
 		}
 
+		// build the output
 		return [
 			'name' => $pathinfo['filename'] . '.' . $params . '.' . $pathinfo['extension'],
 			'imageInputFilePath' => $imagePathFull,
