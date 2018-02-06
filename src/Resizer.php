@@ -122,10 +122,15 @@ class Resizer implements IResizer
 			$geometry = Geometry::parseGeometry($params);
 			$imageExists = true;
 
-			// thumbnail doesn't exist, create it
-			if (!is_file($imageOutputFilePath)) {
-				// the file might be corrupted
-				try {
+			// the file might be corrupted
+			try {
+				if (
+					// thumbnail doesn't exist, create it
+					!is_file($imageOutputFilePath)
+					OR
+					// thumbnail exists, but for whatever reason it's empty
+					(is_file($imageOutputFilePath) AND !filesize($imageOutputFilePath))
+				) {
 					$image = $this->imagine->open($imagePathFull);
 					$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
 					$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
@@ -141,13 +146,13 @@ class Resizer implements IResizer
 					// remove all comments & metadata
 					$image->strip();
 					$image->save($imageOutputFilePath, $this->options);
-				} catch (RuntimeException $e) {
-					$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
-					$imageOutputSize = ['width' => null, 'height' => null];
-					$imageExists = false;
+				} else {
+					$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
 				}
-			} else {
-				$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
+			} catch (RuntimeException $e) {
+				$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
+				$imageOutputSize = ['width' => null, 'height' => null];
+				$imageExists = false;
 			}
 
 			if (Geometry::isCrop($geometry)) {
