@@ -5,10 +5,10 @@ namespace Nelson\Resizer\DI;
 use Latte\Engine;
 use Nelson\Resizer as Module;
 use Nelson\Resizer\Resizer;
+use Nepada\PresenterMapping\PresenterMapper;
 use Nette\Bridges\ApplicationLatte\ILatteFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\ServiceDefinition;
-use Nepada\PresenterMapping\PresenterMapper;
 
 final class ResizerExtension extends CompilerExtension
 {
@@ -94,5 +94,4 @@ final class ResizerExtension extends CompilerExtension
 	{
 		return $class === $type || is_subclass_of($class, $type);
 	}
-
 }

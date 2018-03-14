@@ -2,9 +2,9 @@
 
 namespace Nelson\Resizer;
 
+use Imagine\Exception\RuntimeException;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
-use Imagine\Exception\RuntimeException;
 use Nette\Caching\Cache;
 use Nette\Caching\IStorage;
 use Nette\Http\Request;
@@ -127,9 +127,9 @@ class Resizer implements IResizer
 				if (
 					// thumbnail doesn't exist, create it
 					!is_file($imageOutputFilePath)
-					OR
+					or
 					// thumbnail exists, but for whatever reason it's empty
-					(is_file($imageOutputFilePath) AND !filesize($imageOutputFilePath))
+					(is_file($imageOutputFilePath) and !filesize($imageOutputFilePath))
 				) {
 					$image = $this->imagine->open($imagePathFull);
 					$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
