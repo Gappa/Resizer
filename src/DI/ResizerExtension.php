@@ -3,10 +3,12 @@
 namespace Nelson\Resizer\DI;
 
 use Latte\Engine;
+use Nelson\Resizer as Module;
 use Nelson\Resizer\Resizer;
 use Nette\Bridges\ApplicationLatte\ILatteFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\ServiceDefinition;
+use Nepada\PresenterMapping\PresenterMapper;
 
 final class ResizerExtension extends CompilerExtension
 {
@@ -64,6 +66,22 @@ final class ResizerExtension extends CompilerExtension
 		if ($builder->hasDefinition('nette.latte')) {
 			$registerToLatte($builder->getDefinition('nette.latte'));
 		}
+
+		$this->applyMapping();
+	}
+
+
+	/**
+	 * @return void
+	 */
+	private function applyMapping()
+	{
+		$builder = $this->getContainerBuilder();
+
+		$mapping = ['Base:Resizer' => Module::class . '\Presenters\*Presenter'];
+		$presenterMapper = $builder->getByType(PresenterMapper::class);
+		$builder->getDefinition($presenterMapper)
+			->addSetup('setMapping', [$mapping]);
 	}
 
 
@@ -76,4 +94,5 @@ final class ResizerExtension extends CompilerExtension
 	{
 		return $class === $type || is_subclass_of($class, $type);
 	}
+
 }
