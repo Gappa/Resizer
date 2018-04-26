@@ -49,10 +49,6 @@ class Resizer implements IResizer
 	protected $httpRequest;
 
 
-	/**
-	 * @param Request  $request
-	 * @param IStorage $cacheStorage
-	 */
 	public function __construct(
 		Request $request,
 		IStorage $cacheStorage
@@ -62,11 +58,7 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  array  $config
-	 * @return void
-	 */
-	public function setup(array $config)
+	public function setup(array $config): void
 	{
 		$this->storageDir = $config['paths']['storage'];
 		$this->assetsDir = $config['paths']['assets'];
@@ -88,13 +80,7 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  string  $filePath
-	 * @param  string  $dimensions
-	 * @param  bool    $useAssets
-	 * @return array
-	 */
-	protected function process($imagePath, $params, $useAssets = false)
+	protected function process(string $imagePath, ?string $params, bool $useAssets = false): ?array
 	{
 		// skippable argument defaults "hack" & backwards compat
 		if ($params === null or $params === 'auto') {
@@ -172,25 +158,15 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  string  $filePath
-	 * @param  string  $dimensions
-	 * @param  string  $alt
-	 * @param  string  $title
-	 * @param  string  $id
-	 * @param  string  $class
-	 * @param  bool  $useAssets
-	 * @return Html
-	 */
 	public function resize(
-		$imagePath,
-		$params = null,
-		$alt = null,
-		$title = null,
-		$id = null,
-		$class = null,
-		$useAssets = false
-	) {
+		string $imagePath,
+		string $params = null,
+		string $alt = null,
+		string $title = null,
+		string $id = null,
+		string $class = null,
+		bool $useAssets = false
+	): Html {
 		$resizedImage = $this->process($imagePath, $params, $useAssets);
 
 		return Html::el('img')
@@ -204,33 +180,19 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  string $imagePath
-	 * @param  array|null $params
-	 * @param  bool $useAssets
-	 * @return Html
-	 */
-	public function send($imagePath, $params, $useAssets)
+	public function send(string $imagePath, ?string $params, bool $useAssets): ?array
 	{
 		return $this->process($imagePath, $params, $useAssets);
 	}
 
 
-	/**
-	 * @param  string $filepath
-	 * @return ImageInterface
-	 */
-	public function openImage($filepath)
+	public function openImage(string $filepath): ImageInterface
 	{
 		return $this->imagine->open($filepath);
 	}
 
 
-	/**
-	 * @param  string $filepath
-	 * @return array
-	 */
-	public function getImageSize($filepath)
+	public function getImageSize(string $filepath): array
 	{
 		$imageSize = $this->openImage($filepath)->getSize();
 
@@ -241,11 +203,7 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  string $filepath
-	 * @return string
-	 */
-	public function getImageOutputDir($filepath)
+	public function getImageOutputDir(string $filepath): string
 	{
 		$dir = $this->cacheDir . preg_replace('#^' . $this->wwwDir . '\/#', '', ($filepath)) . DIRECTORY_SEPARATOR;
 
@@ -259,21 +217,16 @@ class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @param  string $path
-	 * @return string
-	 */
-	private function getImageOutputUrl($path)
+	private function getImageOutputUrl(string $path): string
 	{
 		return $this->basePath . preg_replace('#^' . $this->wwwDir . '\/#', '', $path);
 	}
 
 
 	/**
-	 * @return void
 	 * @throws InvalidStateException
 	 */
-	private function testCacheDir()
+	private function testCacheDir(): void
 	{
 		if (!is_dir($this->cacheDir) || !is_writable($this->cacheDir)) {
 			throw new InvalidStateException("Thumbnail path '$this->cacheDir' does not exists or is not writable.");
@@ -282,10 +235,9 @@ class Resizer implements IResizer
 
 
 	/**
-	 * @return void
 	 * @throws InvalidStateException
 	 */
-	private function testStorageDir()
+	private function testStorageDir(): void
 	{
 		if (!is_dir($this->storageDir) || !is_writable($this->storageDir)) {
 			throw new InvalidStateException("Storage path '$this->storageDir' does not exists or is not writable.");

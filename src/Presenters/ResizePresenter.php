@@ -23,7 +23,7 @@ class ResizePresenter extends Presenter
 	protected $httpResponse;
 
 
-	public function startup()
+	public function startup(): void
 	{
 		parent::startup();
 		$this->httpResponse = $this->getHttpResponse();
@@ -32,12 +32,7 @@ class ResizePresenter extends Presenter
 	}
 
 
-	/**
-	 * @param  string $file
-	 * @param  string $params
-	 * @return void
-	 */
-	public function actionDefault($file, $params = null, $useAssets = false)
+	public function actionDefault(string $file, string $params = null, bool $useAssets = false): void
 	{
 		$image = $this->resizer->send($file, $params, $useAssets);
 
@@ -76,22 +71,13 @@ class ResizePresenter extends Presenter
 	}
 
 
-	/**
-	 * @param  string $srcFile
-	 * @param  string $dstFile
-	 * @return string
-	 */
-	protected function getEtag($srcFile, $dstFile)
+	protected function getEtag(string $srcFile, string $dstFile): string
 	{
 		return filemtime($srcFile) . '-' . md5($dstFile);
 	}
 
 
-	/**
-	 * @param  string $etag
-	 * @return bool
-	 */
-	protected function matchEtag($etag)
+	protected function matchEtag(string $etag): bool
 	{
 		return isset($_SERVER['HTTP_IF_NONE_MATCH']) && stripslashes($_SERVER['HTTP_IF_NONE_MATCH']) === $etag;
 	}

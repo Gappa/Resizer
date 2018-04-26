@@ -30,10 +30,7 @@ final class ResizerExtension extends CompilerExtension
 	];
 
 
-	/**
-	 * @return void
-	 */
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		$builder = $this->getContainerBuilder();
 		$config = $this->getConfig($this->defaults);
@@ -43,10 +40,7 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	/**
-	 * @return void
-	 */
-	public function beforeCompile()
+	public function beforeCompile(): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -71,10 +65,7 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	/**
-	 * @return void
-	 */
-	private function applyMapping()
+	private function applyMapping(): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -85,12 +76,7 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	/**
-	 * @param string $class
-	 * @param string $type
-	 * @return bool
-	 */
-	private static function isOfType($class, $type)
+	private static function isOfType(string $class, string $type): bool
 	{
 		return $class === $type || is_subclass_of($class, $type);
 	}

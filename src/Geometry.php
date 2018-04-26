@@ -12,9 +12,8 @@ class Geometry
 
 	/**
 	 * @param  array|string $geometry
-	 * @return array|bool
 	 */
-	public static function parseGeometry($geometry)
+	public static function parseGeometry($geometry): ?array
 	{
 		if (is_array($geometry)) {
 			return $geometry;
@@ -35,49 +34,47 @@ class Geometry
 			}
 		}
 
-		return false;
+		return null;
 	}
 
 
 	/**
-	 * @param  array $srcSize
-	 * @param  array $geometry
-	 * @return array
+	 * @throws InvalidArgumentException
 	 */
-	public static function calculateNewSize(array $srcSize, array $geometry)
+	public static function calculateNewSize(array $srcSize, array $geometry): array
 	{
 		$desiredSize = $dstSize = [
 			'width' => $geometry['width'],
 			'height' => $geometry['height'],
 		];
 
-		// nejsou zadane zadne parametry, vratit realne rozmery obrazku
+		// No params are set, use the image's dimensions
 		if (!array_filter($geometry)) {
 			return $srcSize;
 		}
 
-		// pokud parametry vynucuji vysledny rozmer, vratit tyto
+		// If params force a dimension, use them
 		if (!empty($geometry['suffix']) or (strpos($geometry['suffix'], '!') === true)) {
 			return $desiredSize;
 		}
 
-		// This should not happen
+		// This should not happen, has to be one or the other
 		if (static::isCrop($geometry) and static::isIfResize($geometry)) {
 			throw new InvalidArgumentException('Crop and IfResize can not be used together.');
 		}
 
 		// -------------------------------
 
-		$srcRatio = $srcSize['width'] / $srcSize['height']; // realny pomer stran
+		$srcRatio = $srcSize['width'] / $srcSize['height']; // real AR
 		if (!empty($desiredSize['width']) and !empty($desiredSize['height'])) {
-			$desiredRatio = $desiredSize['width'] / $desiredSize['height']; // teoreticky chteny pomer stran
+			$desiredRatio = $desiredSize['width'] / $desiredSize['height']; // possibly wanted AR
 		} else {
 			$desiredRatio = $srcRatio;
 		}
 
-		if ($desiredRatio <= $srcRatio and !empty($desiredSize['width'])) { // vysledna sirka bude odpovidat pozadavku
+		if ($desiredRatio <= $srcRatio and !empty($desiredSize['width'])) { // output width will respect the params
 			$outputRatio = $desiredSize['width'] / $srcSize['width'];
-		} elseif (!empty($desiredSize['height'])) { // vysledna vyska bude odpovidat pozadavku
+		} elseif (!empty($desiredSize['height'])) { // output height will respect the params
 			$outputRatio = $desiredSize['height'] / $srcSize['height'];
 		} else {
 			$outputRatio = $srcRatio;
@@ -86,7 +83,7 @@ class Geometry
 		$dstSize['width'] = round($srcSize['width'] * $outputRatio);
 		$dstSize['height'] = round($srcSize['height'] * $outputRatio);
 
-		// need to scale up to make room for the crop again
+		// Need to scale up to make room for the crop again
 		if (static::isCrop($geometry)) {
 			if ($dstSize['width'] == $geometry['width']) {
 				$dstSize['width'] = round($dstSize['width'] * $geometry['height'] / $dstSize['height']);
@@ -113,32 +110,19 @@ class Geometry
 	}
 
 
-	/**
-	 * @param  array $geometry
-	 * @return bool
-	 */
-	public static function isCrop(array $geometry)
+	public static function isCrop(array $geometry): bool
 	{
 		return !empty($geometry['horizontal']) and !empty($geometry['vertical']);
 	}
 
 
-	/**
-	 * @param  array $geometry
-	 * @return bool
-	 */
-	public static function isIfResize(array $geometry)
+	public static function isIfResize(array $geometry): bool
 	{
 		return !empty($geometry['ifresize']);
 	}
 
 
-	/**
-	 * @param  array $geometry
-	 * @param  array $imageOutputSize
-	 * @return Point
-	 */
-	public static function getCropPoint(array $geometry, array $imageOutputSize)
+	public static function getCropPoint(array $geometry, array $imageOutputSize): Point
 	{
 		switch ($geometry['horizontal']) {
 			case 'l':

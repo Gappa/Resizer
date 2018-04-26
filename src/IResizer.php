@@ -7,29 +7,20 @@ use Nette\Utils\Html;
 interface IResizer
 {
 
-	/**
-	 * @param  string $path
-	 * @param  string|NULL $irParams
-	 * @param  string|NULL $alt
-	 * @param  string|NULL $title
-	 * @param  string|NULL $class
-	 * @param  string|NULL $id
-	 * @return Html
-	 */
 	public function resize(
-		$path,
-		$irParams = null,
-		$alt = null,
-		$title = null,
-		$class = null,
-		$id = null
-	);
+		string $path,
+		string $irParams = null,
+		string $alt = null,
+		string $title = null,
+		string $class = null,
+		string $id = null,
+		bool $useAssets = false
+	): Html;
 
-	/**
-	 * @param  string $path
-	 * @param  array|NULL $params
-	 * @param  bool $useAssets
-	 * @return array Contains information about the resized image
-	 */
-	public function send($path, $params, $useAssets);
+
+	public function send(
+		string $path,
+		?string $params,
+		bool $useAssets
+	): ?array;
 }
