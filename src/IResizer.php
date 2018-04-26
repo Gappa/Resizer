@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
@@ -6,7 +7,6 @@ use Nette\Utils\Html;
 
 interface IResizer
 {
-
 	public function resize(
 		string $path,
 		string $irParams = null,
@@ -16,7 +16,6 @@ interface IResizer
 		string $id = null,
 		bool $useAssets = false
 	): Html;
-
 
 	public function send(
 		string $path,
