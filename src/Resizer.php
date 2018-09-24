@@ -15,39 +15,39 @@ use Nette\SmartObject;
 use Nette\Utils\Html;
 
 
-class Resizer implements IResizer
+final class Resizer implements IResizer
 {
 	use SmartObject;
 
 	/** @var string */
-	protected $storageDir;
+	private $storageDir;
 
 	/** @var string */
-	protected $assetsDir;
+	private $assetsDir;
 
 	/** @var string */
-	protected $cacheDir;
+	private $cacheDir;
 
 	/** @var string */
-	protected $wwwDir;
+	private $wwwDir;
 
 	/** @var string */
-	protected $basePath;
+	private $basePath;
 
 	/** @var ImageInterface */
-	protected $imagine;
+	private $imagine;
 
 	/** @var Cache */
-	protected $cache;
+	private $cache;
 
 	/** @var IStorage */
-	protected $cacheStorage;
+	private $cacheStorage;
 
 	/** @var array */
-	protected $options;
+	private $options = [];
 
 	/** @var Request */
-	protected $httpRequest;
+	private $httpRequest;
 
 
 	public function __construct(

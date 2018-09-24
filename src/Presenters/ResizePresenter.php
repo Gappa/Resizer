@@ -9,7 +9,7 @@ use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
 use Nette\Http\Response;
 
-class ResizePresenter extends Presenter
+final class ResizePresenter extends Presenter
 {
 
 	/**
@@ -21,7 +21,7 @@ class ResizePresenter extends Presenter
 	/**
 	 * @var Response
 	 */
-	protected $httpResponse;
+	private $httpResponse;
 
 
 	public function startup(): void
