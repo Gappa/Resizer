@@ -18,24 +18,26 @@ class Geometry
 	{
 		if (is_array($geometry)) {
 			return $geometry;
-		} else {
-			$pattern = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)([!]?)([+-]?[0-9]*)([+-]?[0-9]*)#';
-
-			if (preg_match($pattern, $geometry, $matches)) {
-				return [
-					'ifresize' => (bool) $matches[1],
-					'horizontal' => $matches[2],
-					'vertical' => $matches[4],
-					'width' => (int) $matches[3],
-					'height' => (int) $matches[5],
-					'suffix' => $matches[6],
-					'horizontalMargin' => $matches[7],
-					'verticalMargin' => $matches[8],
-				];
-			}
+		} elseif (is_null($geometry)) {
+			return null;
+		} elseif (is_string($geometry) && strlen($geometry) === 0) {
+			return null;
 		}
 
-		return null;
+		$pattern = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)([!]?)([+-]?[0-9]*)([+-]?[0-9]*)#';
+
+		if (preg_match($pattern, $geometry, $matches)) {
+			return [
+				'ifresize' => (bool) $matches[1],
+				'horizontal' => $matches[2],
+				'vertical' => $matches[4],
+				'width' => (int) $matches[3],
+				'height' => (int) $matches[5],
+				'suffix' => $matches[6],
+				'horizontalMargin' => $matches[7],
+				'verticalMargin' => $matches[8],
+			];
+		}
 	}
 
 

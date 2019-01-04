@@ -10,6 +10,10 @@
 		"imagine/imagine": "^0.7.1",
 		"nepada/presenter-mapping": "^1.0"
 	},
+	"require-dev": {
+		"nette/tester": "^2.0",
+		"phpstan/phpstan-shim": "^0.10.5"
+	},
 	"autoload": {
 		"psr-4": {
 			"Nelson\\Resizer\\": "src/"
