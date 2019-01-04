@@ -7,7 +7,10 @@ use Nelson\Resizer\IResizer;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
+use Nette\Http\Context;
+use Nette\Http\Request;
 use Nette\Http\Response;
+use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter
 {
@@ -19,17 +22,25 @@ final class ResizePresenter extends Presenter
 	public $resizer;
 
 	/**
+	 * @var Request
+	 */
+	private $request;
+
+	/**
 	 * @var Response
 	 */
-	private $httpResponse;
+	private $response;
 
 
 	public function startup(): void
 	{
 		parent::startup();
-		$this->httpResponse = $this->getHttpResponse();
-		$this->httpResponse->setHeader('Pragma', '');
-		$this->httpResponse->setHeader('Cache-Control', '');
+		$this->request = $this->getHttpRequest();
+		$this->response = $this->getHttpResponse();
+
+		// Get rid of troublemaking headers
+		$this->response->setHeader('Pragma', null);
+		$this->response->setHeader('Cache-Control', null);
 	}
 
 
@@ -37,49 +48,40 @@ final class ResizePresenter extends Presenter
 	{
 		$image = $this->resizer->send($file, $params, $useAssets);
 
-		if ($image['imageExists']) {
-			$etag = $this->getEtag($image['imageInputFilePath'], $image['imageOutputFilePath']);
-			$this->httpResponse->setHeader('Etag', $etag);
-
-			if ($this->matchEtag($etag)) {
-				$this->httpResponse->setHeader('Content-Length', 0);
-				$this->httpResponse->setHeader('Expires', '');
-				$this->httpResponse->setHeader('Last-Modified', '');
-				$this->httpResponse->setCode(Response::S304_NOT_MODIFIED);
-
-				//send empty response
-				$this->sendResponse(new TextResponse(''));
-			} else {
-				$finfo = finfo_open(FILEINFO_MIME_TYPE);
-				$mime = finfo_file($finfo, $image['imageOutputFilePath']);
-
-				$fileResponse = new FileResponse(
-					$image['imageOutputFilePath'],
-					$image['name'],
-					$mime,
-					false
-				);
-
-				$this->httpResponse->setHeader('Last-Modified', gmdate('D, j M Y H:i:s T', filemtime($image['imageOutputFilePath'])));
-				$this->httpResponse->setHeader('Expires', gmdate('D, j M Y H:i:s T', time() + 29030400));
-
-				// send
-				$this->sendResponse($fileResponse);
-			}
-		} else {
+		if (!$image['imageExists']) {
 			$this->error('Image does not exist.');
+		}
+
+		$context = new Context($this->request, $this->response);
+		$etag = $this->getEtag($image['imageInputFilePath'], $image['imageOutputFilePath']);
+
+		if (!$context->isModified(null, $etag)) {
+			$this->response->setCode(Response::S304_NOT_MODIFIED);
+			$this->sendResponse(new TextResponse(''));
+		} else {
+			$fileResponse = new FileResponse(
+				$image['imageOutputFilePath'],
+				$image['name'],
+				$this->getMimeType($image['imageOutputFilePath']),
+				false
+			);
+
+			$now = new DateTime;
+			$this->response->setExpiration($now->modify('+1 MONTH'));
+			$this->sendResponse($fileResponse);
 		}
 	}
 
 
-	protected function getEtag(string $srcFile, string $dstFile): string
+	private function getMimeType($filePath): string
 	{
-		return filemtime($srcFile) . '-' . md5($dstFile);
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		return finfo_file($finfo, $filePath);
 	}
 
 
-	protected function matchEtag(string $etag): bool
+	private function getEtag(string $srcFile, string $dstFile): string
 	{
-		return isset($_SERVER['HTTP_IF_NONE_MATCH']) && stripslashes($_SERVER['HTTP_IF_NONE_MATCH']) === $etag;
+		return filemtime($srcFile) . '-' . md5($dstFile);
 	}
 }
