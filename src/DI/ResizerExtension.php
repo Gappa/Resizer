@@ -24,6 +24,7 @@ final class ResizerExtension extends CompilerExtension
 		'library' => 'Imagick', // Gd/Imagick/Gmagick
 		'cacheNS' => 'resizer',
 		'absoluteUrls' => false,
+		'interlace' => true, // progressive mode
 		'options' => [
 			'jpeg_quality' => 75, // 0 - 100
 			'png_compression_level' => 7, // 0 - 9

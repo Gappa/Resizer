@@ -49,6 +49,9 @@ final class Resizer implements IResizer
 	/** @var Request */
 	private $httpRequest;
 
+	/** @var bool */
+	private $interlace;
+
 
 	public function __construct(
 		Request $request,
@@ -69,6 +72,7 @@ final class Resizer implements IResizer
 
 		$url = $this->httpRequest->getUrl();
 		$this->basePath = !empty($config['absoluteUrls']) ? $url->getBaseUrl() : $url->getBasePath();
+		$this->interlace = (bool) $config['interlace'];
 
 		$this->testStorageDir();
 		$this->testCacheDir();
@@ -118,6 +122,7 @@ final class Resizer implements IResizer
 					// thumbnail exists, but for whatever reason it's empty
 					(is_file($imageOutputFilePath) and !filesize($imageOutputFilePath))
 				) {
+					/** @var ImageInterface $image */
 					$image = $this->imagine->open($imagePathFull);
 					$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
 					$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
@@ -132,6 +137,12 @@ final class Resizer implements IResizer
 
 					// remove all comments & metadata
 					$image->strip();
+
+					// use progressive/interlace mode?
+					if ($this->interlace) {
+						$image->interlace(ImageInterface::INTERLACE_LINE);
+					}
+
 					$image->save($imageOutputFilePath, $this->options);
 				} else {
 					$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
