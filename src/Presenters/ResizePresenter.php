@@ -67,7 +67,7 @@ final class ResizePresenter extends Presenter
 			);
 
 			$now = new DateTime;
-			$this->response->setExpiration($now->modify('+1 MONTH'));
+			$this->response->setExpiration($now->modify('+1 YEAR'));
 			$this->sendResponse($fileResponse);
 		}
 	}
