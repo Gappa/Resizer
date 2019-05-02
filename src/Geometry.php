@@ -11,7 +11,6 @@ class Geometry
 {
 	use SmartObject;
 
-
 	/**
 	 * @param array|string|null $geometry
 	 * @return array|null
@@ -20,7 +19,7 @@ class Geometry
 	{
 		if (is_array($geometry)) {
 			return $geometry;
-		} elseif (is_null($geometry)) {
+		} elseif ($geometry === null) {
 			return null;
 		} elseif (is_string($geometry) && strlen($geometry) === 0) {
 			return null;

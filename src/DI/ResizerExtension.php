@@ -3,15 +3,12 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\DI;
 
-use Latte\Engine;
 use Nelson\Resizer\Resizer;
 use Nepada\PresenterMapping\PresenterMapper;
-use Nette\Bridges\ApplicationLatte\ILatteFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\FactoryDefinition;
 use Nette\DI\ServiceDefinition;
 use Nette\Schema\Expect;
-use Nette\Schema\Processor;
 use Nette\Schema\Schema;
 
 final class ResizerExtension extends CompilerExtension
@@ -92,5 +89,4 @@ final class ResizerExtension extends CompilerExtension
 			$service->addSetup('setMapping', [$mapping]);
 		}
 	}
-
 }

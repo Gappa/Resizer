@@ -22,14 +22,10 @@ final class ResizePresenter extends Presenter
 	 */
 	public $resizer;
 
-	/**
-	 * @var IRequest
-	 */
+	/** @var IRequest */
 	private $request;
 
-	/**
-	 * @var IResponse
-	 */
+	/** @var IResponse */
 	private $response;
 
 

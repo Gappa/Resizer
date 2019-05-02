@@ -1,57 +1,13 @@
 parameters:
 	autoload_directories:
 		 - src/
-		 # - libs/
 
 	paths:
 		- src/
-		# - libs/
 
 	level: 7
-
-	# ignoreErrors:
-	# 	# Global errors
-	# 	-  '#Call to an undefined method Nette\\(Forms\\Container|Application\\UI\\Form)::addDatePicker\(\).#'
-	# 	-  '#Call to an undefined method Nette\\(Forms\\Container|Application\\UI\\Form)::addUploadImage\(\).#'
-	# 	-  '#Call to an undefined method Nette\\(Forms\\Container|Application\\UI\\Form)::addRichTextArea\(\).#'
-	# 	-  '#Call to an undefined method Nette\\(Forms\\Container|Application\\UI\\Form)::addUploadGeneric\(\).#'
-	# 	-  '#Call to an undefined method Nette\\(Forms\\Container|Application\\UI\\Form)::addDivBlock\(\).#'
-
-	# 	# Whole files
-	# 	-
-	# 		path: %currentWorkingDirectory%/libs/Nelson/Data.php
-	# 		message: '##'
-	# 	-
-	# 		path: %currentWorkingDirectory%/libs/Nelson/Doctrine/Entities/ABaseEntity.php
-	# 		message: '##'
-	# 	-
-	# 		path: %currentWorkingDirectory%/libs/Nelson/Forms/FormRenderer.php
-	# 		message: '##'
-
-	# 	# Specific
-	# 	-
-	# 		path: %currentWorkingDirectory%/libs/Nelson/Grid/GridFactory.php
-	# 		message: '#Call to an undefined method Nette\\Application\\UI\\Presenter::getTemplatePath\(\).#'
-	# 	-
-	# 		path: %currentWorkingDirectory%/libs/Nelson/TreeStructure/Tree.php
-	# 		message: '#Result of method Nette\\ComponentModel\\Container::getComponent\(\) \(void\) is used.#'
-	# 	-
-	# 		path: %currentWorkingDirectory%/app/modules/Front/NewsPresenter.php
-	# 		message: '#Call to an undefined method ([a-zA-Z0-9\\_]+)#'
-	# 	-
-	# 		path: %currentWorkingDirectory%/app/packages/StructureDataPackage/Presenters/AdminPresenter.php
-	# 		message: '#Call to an undefined method App\\Packages\\StructureDataPackage\\Entities\\Value::getGallery\(\).#'
-	# 	-
-	# 		path: %currentWorkingDirectory%/app/packages/StructureDataPackage/Presenters/AdminPresenter.php
-	# 		message: '#Call to an undefined method App\\Packages\\StructureDataPackage\\Entities\\Value::setGallery\(\).#'
 
 
 includes:
 	- ../vendor/phpstan/phpstan-nette/extension.neon
 	- ../vendor/phpstan/phpstan-nette/rules.neon
-
-#	- ../vendor/phpstan/phpstan-doctrine/extension.neon
-#	- ../vendor/phpstan/phpstan-doctrine/rules.neon
-
-
-
