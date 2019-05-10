@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Presenters;
 
+use Exception;
 use Nelson\Resizer\IResizer;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
@@ -71,10 +72,15 @@ final class ResizePresenter extends Presenter
 	}
 
 
-	private function getMimeType($filePath): string
+	private function getMimeType($filePath): ?string
 	{
-		$finfo = finfo_open(FILEINFO_MIME_TYPE);
-		return finfo_file($finfo, $filePath);
+		$mime = mime_content_type($filePath);
+
+		if ($mime === false) {
+			return null;
+		}
+
+		return $mime;
 	}
 
 
