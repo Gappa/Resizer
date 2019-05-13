@@ -17,17 +17,20 @@ use Nette\Utils\DateTime;
 final class ResizePresenter extends Presenter
 {
 
-	/**
-	 * @inject
-	 * @var IResizer
-	 */
-	public $resizer;
+	/** @var IResizer */
+	private $resizer;
 
 	/** @var IRequest */
 	private $request;
 
 	/** @var IResponse */
 	private $response;
+
+
+	public function __construct(IResizer $resizer)
+	{
+		$this->resizer = $resizer;
+	}
 
 
 	public function startup(): void
