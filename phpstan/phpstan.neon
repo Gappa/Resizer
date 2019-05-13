@@ -1,0 +1,13 @@
+parameters:
+	autoload_directories:
+		 - src/
+
+	paths:
+		- src/
+
+	level: 7
+
+
+includes:
+	- ../vendor/phpstan/phpstan-nette/extension.neon
+	- ../vendor/phpstan/phpstan-nette/rules.neon

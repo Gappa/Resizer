@@ -3,11 +3,9 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\DI;
 
-use Latte\Engine;
-use Nelson\Resizer as Module;
+use _HumbugBox9aa570140480\Nette\DI\Definitions\FactoryDefinition;
 use Nelson\Resizer\Resizer;
 use Nepada\PresenterMapping\PresenterMapper;
-use Nette\Bridges\ApplicationLatte\ILatteFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\ServiceDefinition;
 
@@ -35,9 +33,9 @@ final class ResizerExtension extends CompilerExtension
 	public function loadConfiguration(): void
 	{
 		$builder = $this->getContainerBuilder();
-		$config = $this->getConfig($this->defaults);
-		$resizer = $builder->addDefinition($this->prefix('default'))
-			->setClass(Resizer::class)
+		$config = $this->validateConfig($this->getContainerBuilder()->expand($this->defaults), $this->config);
+		$builder->addDefinition($this->prefix('default'))
+			->setType(Resizer::class)
 			->addSetup('setup', [$config]);
 	}
 
@@ -46,41 +44,25 @@ final class ResizerExtension extends CompilerExtension
 	{
 		$builder = $this->getContainerBuilder();
 
-		$registerToLatte = function (ServiceDefinition $def) {
-			$def->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
-			$def->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
-		};
-
-		$latteFactoryService = $builder->getByType(ILatteFactory::class);
-		if (!$latteFactoryService || !self::isOfType($builder->getDefinition($latteFactoryService)->getClass(), Engine::class)) {
-			$latteFactoryService = 'nette.latteFactory';
+		// Latte filter
+		$latteFactoryName = 'latte.latteFactory';
+		if ($builder->hasDefinition($latteFactoryName)) {
+			/** @var FactoryDefinition $latteFactory */
+			$latteFactory = $builder->getDefinition($latteFactoryName);
+			$latteFactory
+				->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']])
+				->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
 		}
 
-		if ($builder->hasDefinition($latteFactoryService) && self::isOfType($builder->getDefinition($latteFactoryService)->getClass(), Engine::class)) {
-			$registerToLatte($builder->getDefinition($latteFactoryService));
-		}
 
-		if ($builder->hasDefinition('nette.latte')) {
-			$registerToLatte($builder->getDefinition('nette.latte'));
-		}
-
-		$this->applyMapping();
-	}
-
-
-	private function applyMapping(): void
-	{
-		$builder = $this->getContainerBuilder();
-
-		$mapping = ['Base:Resizer' => Module::class . '\Presenters\*Presenter'];
+		// Presenter mappings
+		$mapping = ['Base:Resizer' => '\Nelson\Resizer\Presenters\*Presenter'];
 		$presenterMapper = $builder->getByType(PresenterMapper::class);
-		$builder->getDefinition($presenterMapper)
-			->addSetup('setMapping', [$mapping]);
-	}
 
-
-	private static function isOfType(string $class, string $type): bool
-	{
-		return $class === $type || is_subclass_of($class, $type);
+		if ($presenterMapper) {
+			/** @var ServiceDefinition $service */
+			$service = $builder->getDefinition($presenterMapper);
+			$service->addSetup('setMapping', [$mapping]);
+		}
 	}
 }

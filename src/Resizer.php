@@ -14,7 +14,6 @@ use Nette\InvalidStateException;
 use Nette\SmartObject;
 
 use Nette\Utils\Html;
-use stdClass;
 
 
 final class Resizer implements IResizer
