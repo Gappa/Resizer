@@ -15,20 +15,26 @@ class Macros extends Latte\Macros\MacroSet
 	{
 		$me = new static($parser);
 
-		$me->addMacro('rsrc', function (MacroNode $node, PhpWriter $writer) use ($me) {
-			return $me->macroSrc($node, $writer);
-		}, NULL, function(MacroNode $node, PhpWriter $writer) use ($me) {
-			self::checkIsImgTag($node->htmlNode);
-			self::checkAttrNotDuplicate($node->htmlNode, 'src');
-			return ' ?> src="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
-		});
+		$me->addMacro(
+			'rsrc',
+			null,
+			null,
+			function(MacroNode $node, PhpWriter $writer) use ($me) {
+				self::checkIsImgTag($node->htmlNode);
+				self::checkAttrNotDuplicate($node->htmlNode, 'src');
+				return ' ?> src="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
+			}
+		);
 
-		$me->addMacro('rhref', function (MacroNode $node, PhpWriter $writer) use ($me) {
-			return $me->macroSrc($node, $writer);
-		}, NULL, function(MacroNode $node, PhpWriter $writer) use ($me) {
-			self::checkAttrNotDuplicate($node->htmlNode, 'href');
-			return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
-		});
+		$me->addMacro(
+			'rhref',
+			null,
+			null,
+			function(MacroNode $node, PhpWriter $writer) use ($me) {
+				self::checkAttrNotDuplicate($node->htmlNode, 'href');
+				return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
+			}
+		);
 	}
 
 
