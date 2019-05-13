@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Presenters;
 
-use Exception;
 use Nelson\Resizer\IResizer;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;

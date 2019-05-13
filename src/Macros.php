@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
@@ -10,7 +11,6 @@ use Latte\PhpWriter;
 
 class Macros extends Latte\Macros\MacroSet
 {
-
 	public static function install(Latte\Compiler $parser)
 	{
 		$me = new static($parser);
@@ -19,7 +19,7 @@ class Macros extends Latte\Macros\MacroSet
 			'rsrc',
 			null,
 			null,
-			function(MacroNode $node, PhpWriter $writer) use ($me) {
+			function (MacroNode $node, PhpWriter $writer) use ($me) {
 				self::checkIsImgTag($node->htmlNode);
 				self::checkAttrNotDuplicate($node->htmlNode, 'src');
 				return ' ?> src="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
@@ -30,7 +30,7 @@ class Macros extends Latte\Macros\MacroSet
 			'rhref',
 			null,
 			null,
-			function(MacroNode $node, PhpWriter $writer) use ($me) {
+			function (MacroNode $node, PhpWriter $writer) use ($me) {
 				self::checkAttrNotDuplicate($node->htmlNode, 'href');
 				return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
 			}
@@ -68,5 +68,4 @@ class Macros extends Latte\Macros\MacroSet
 			throw new Exception(sprintf('Attribute "%s" already defined with value "%s"', $attr, $node->attrs[$attr]));
 		}
 	}
-
 }
