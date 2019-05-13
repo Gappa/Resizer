@@ -54,7 +54,7 @@ class Macros extends Latte\Macros\MacroSet
 
 	public static function checkIsImgTag(HtmlNode $node): void
 	{
-		$tagName = $node->name;
+		$tagName = strtolower($node->name);
 
 		if ($tagName !== 'img') {
 			throw new Exception(sprintf('Macro n:rsrc can only be used in <img> tag, <%s> used', $tagName));
@@ -64,7 +64,7 @@ class Macros extends Latte\Macros\MacroSet
 
 	public static function checkAttrNotDuplicate(HtmlNode $node, string $attr): void
 	{
-		if (array_key_exists($attr, $node->attrs)) {
+		if (isset($node->attrs[$attr])) {
 			throw new Exception(sprintf('Attribute "%s" already defined with value "%s"', $attr, $node->attrs[$attr]));
 		}
 	}
