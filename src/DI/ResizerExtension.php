@@ -48,6 +48,7 @@ final class ResizerExtension extends CompilerExtension
 
 		$registerToLatte = function (ServiceDefinition $def) {
 			$def->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
+			$def->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
 		};
 
 		$latteFactoryService = $builder->getByType(ILatteFactory::class);

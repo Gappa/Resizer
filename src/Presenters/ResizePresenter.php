@@ -8,28 +8,28 @@ use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
 use Nette\Http\Context;
-use Nette\Http\Request;
+use Nette\Http\IRequest;
+use Nette\Http\IResponse;
 use Nette\Http\Response;
 use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter
 {
 
-	/**
-	 * @inject
-	 * @var IResizer
-	 */
-	public $resizer;
+	/** @var IResizer */
+	private $resizer;
 
-	/**
-	 * @var Request
-	 */
+	/** @var IRequest */
 	private $request;
 
-	/**
-	 * @var Response
-	 */
+	/** @var IResponse */
 	private $response;
+
+
+	public function __construct(IResizer $resizer)
+	{
+		$this->resizer = $resizer;
+	}
 
 
 	public function startup(): void
@@ -39,8 +39,8 @@ final class ResizePresenter extends Presenter
 		$this->response = $this->getHttpResponse();
 
 		// Get rid of troublemaking headers
-		$this->response->setHeader('Pragma', null);
-		$this->response->setHeader('Cache-Control', null);
+		$this->response->setHeader('Pragma', '');
+		$this->response->setHeader('Cache-Control', '');
 	}
 
 
@@ -67,16 +67,22 @@ final class ResizePresenter extends Presenter
 			);
 
 			$now = new DateTime;
-			$this->response->setExpiration($now->modify('+1 YEAR'));
+
+			$this->response->setExpiration($now->modify('+1 YEAR')->format('Y-m-d H:i:s'));
 			$this->sendResponse($fileResponse);
 		}
 	}
 
 
-	private function getMimeType($filePath): string
+	private function getMimeType($filePath): ?string
 	{
-		$finfo = finfo_open(FILEINFO_MIME_TYPE);
-		return finfo_file($finfo, $filePath);
+		$mime = mime_content_type($filePath);
+
+		if ($mime === false) {
+			return null;
+		}
+
+		return $mime;
 	}
 
 

@@ -12,13 +12,14 @@ class Geometry
 	use SmartObject;
 
 	/**
-	 * @param  array|string $geometry
+	 * @param array|string|null $geometry
+	 * @return array|null
 	 */
 	public static function parseGeometry($geometry): ?array
 	{
 		if (is_array($geometry)) {
 			return $geometry;
-		} elseif (is_null($geometry)) {
+		} elseif ($geometry === null) {
 			return null;
 		} elseif (is_string($geometry) && strlen($geometry) === 0) {
 			return null;
@@ -41,11 +42,13 @@ class Geometry
 	}
 
 
-	/**
-	 * @throws InvalidArgumentException
-	 */
-	public static function calculateNewSize(array $srcSize, array $geometry): array
+	public static function calculateNewSize(array $srcSize, ?array $geometry): array
 	{
+		// Geometry is empty, use fallback
+		if (empty($geometry)) {
+			return $srcSize;
+		}
+
 		$desiredSize = $dstSize = [
 			'width' => $geometry['width'],
 			'height' => $geometry['height'],
@@ -57,7 +60,7 @@ class Geometry
 		}
 
 		// If params force a dimension, use them
-		if (!empty($geometry['suffix']) or (strpos($geometry['suffix'], '!') === true)) {
+		if (!empty($geometry['suffix']) or (strpos($geometry['suffix'], '!') !== false)) {
 			return $desiredSize;
 		}
 
@@ -113,7 +116,7 @@ class Geometry
 	}
 
 
-	public static function isCrop(array $geometry): bool
+	public static function isCrop(?array $geometry): bool
 	{
 		return !empty($geometry['horizontal']) and !empty($geometry['vertical']);
 	}
@@ -125,7 +128,7 @@ class Geometry
 	}
 
 
-	public static function getCropPoint(array $geometry, array $imageOutputSize): Point
+	public static function getCropPoint(?array $geometry, array $imageOutputSize): Point
 	{
 		switch ($geometry['horizontal']) {
 			case 'l':
@@ -163,6 +166,6 @@ class Geometry
 				break;
 		}
 
-		return new Point($x, $y);
+		return new Point((int) $x, (int) $y);
 	}
 }

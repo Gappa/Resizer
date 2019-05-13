@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Imagine\Exception\RuntimeException;
+use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
 use Nette\Caching\Cache;
@@ -13,6 +14,7 @@ use Nette\InvalidStateException;
 use Nette\SmartObject;
 
 use Nette\Utils\Html;
+use stdClass;
 
 
 final class Resizer implements IResizer
@@ -34,7 +36,7 @@ final class Resizer implements IResizer
 	/** @var string */
 	private $basePath;
 
-	/** @var ImageInterface */
+	/** @var AbstractImagine */
 	private $imagine;
 
 	/** @var Cache */
@@ -64,22 +66,24 @@ final class Resizer implements IResizer
 
 	public function setup(array $config): void
 	{
-		$this->storageDir = $config['paths']['storage'];
-		$this->assetsDir = $config['paths']['assets'];
-		$this->cacheDir = $config['paths']['cache'];
-		$this->options = $config['options'];
-		$this->wwwDir = $config['paths']['wwwDir'];
+		$config = \Nette\Utils\ArrayHash::from($config);
+
+		$this->wwwDir = $config->paths->wwwDir;
+		$this->storageDir = $config->paths->storage;
+		$this->assetsDir = $config->paths->assets;
+		$this->cacheDir = $config->paths->cache;
+		$this->options = $config->options;
 
 		$url = $this->httpRequest->getUrl();
-		$this->basePath = !empty($config['absoluteUrls']) ? $url->getBaseUrl() : $url->getBasePath();
-		$this->interlace = (bool) $config['interlace'];
+		$this->basePath = !empty($config->absoluteUrls) ? $url->getBaseUrl() : $url->getBasePath();
+		$this->interlace = (bool) $config->interlace;
 
 		$this->testStorageDir();
 		$this->testCacheDir();
 
-		$this->cache = new Cache($this->cacheStorage, $config['cacheNS']);
+		$this->cache = new Cache($this->cacheStorage, $config->cacheNS);
 
-		$library = implode('\\', ['Imagine', $config['library'], 'Imagine']);
+		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
 
 		$this->imagine = new $library;
 	}
@@ -99,8 +103,10 @@ final class Resizer implements IResizer
 
 		$imagePathFull = ($useAssets ? $this->assetsDir : $this->storageDir) . $imagePath;
 
-		$pathinfo = pathinfo($imagePath);
-		$cacheFileName = $params . '.' . $pathinfo['extension'];
+		$filename = pathinfo($imagePath, PATHINFO_FILENAME);
+		$extension = pathinfo($imagePath, PATHINFO_EXTENSION) ?? '.unknown';
+
+		$cacheFileName = $params . '.' . $extension;
 		$imageOutputFilePath = $this->getImageOutputDir($imagePathFull) . $cacheFileName;
 
 		// file doesn't exist
@@ -143,7 +149,7 @@ final class Resizer implements IResizer
 						$image->interlace(ImageInterface::INTERLACE_LINE);
 					}
 
-					$image->save($imageOutputFilePath, $this->options);
+					$image->save($imageOutputFilePath, (array) $this->options);
 				} else {
 					$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
 				}
@@ -160,7 +166,7 @@ final class Resizer implements IResizer
 
 		// build the output
 		return [
-			'name' => $pathinfo['filename'] . '.' . $params . '.' . $pathinfo['extension'],
+			'name' => $filename . '.' . $params . '.' . $extension,
 			'imageInputFilePath' => $imagePathFull,
 			'imageOutputFilePath' => $imageOutputFilePath,
 			'imageOutputFileUrl' => $imageOutputFileUrl,
