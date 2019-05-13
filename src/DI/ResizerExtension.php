@@ -76,8 +76,10 @@ final class ResizerExtension extends CompilerExtension
 			$latteFactory = $builder->getDefinition($latteFactoryName);
 			$latteFactory
 				->getResultDefinition()
-				->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
+				->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']])
+				->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
 		}
+
 
 		// Presenter mappings
 		$mapping = ['Base:Resizer' => '\Nelson\Resizer\Presenters\*Presenter'];
