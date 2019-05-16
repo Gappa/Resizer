@@ -9,7 +9,7 @@
 		"nette/utils": "^2.4",
 		"latte/latte": "^2.4",
 		"nette/caching": "^2.5",
-		"imagine/imagine": "^0.7.1"
+		"imagine/imagine": "^1.2.0"
 	},
 	"require-dev": {
 		"nette/tester": "^2.0",
