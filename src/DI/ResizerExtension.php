@@ -3,14 +3,24 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\DI;
 
-use _HumbugBox9aa570140480\Nette\DI\Definitions\FactoryDefinition;
 use Nelson\Resizer\Resizer;
-use Nepada\PresenterMapping\PresenterMapper;
+use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\ServiceDefinition;
 
 final class ResizerExtension extends CompilerExtension
 {
+
+	/** @var string */
+	public const PRESENTER_MAPPING = 'Resizer';
+
+	/** @var string */
+	public const PRESENTER = 'Resize';
+
+	/** @var string */
+	public const ACTION = 'default';
+
+
 	/** @var array */
 	protected $defaults = [
 		'paths' => [
@@ -47,22 +57,24 @@ final class ResizerExtension extends CompilerExtension
 		// Latte filter
 		$latteFactoryName = 'latte.latteFactory';
 		if ($builder->hasDefinition($latteFactoryName)) {
-			/** @var FactoryDefinition $latteFactory */
+			/** @var ServiceDefinition $latteFactory */
 			$latteFactory = $builder->getDefinition($latteFactoryName);
 			$latteFactory
 				->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']])
 				->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
 		}
 
-
 		// Presenter mappings
-		$mapping = ['Base:Resizer' => '\Nelson\Resizer\Presenters\*Presenter'];
-		$presenterMapper = $builder->getByType(PresenterMapper::class);
+		$mapping = [self::PRESENTER_MAPPING => '\Nelson\Resizer\Presenters\*Presenter'];
+		$presenterMapper = $builder->getByType(IPresenterFactory::class);
+		/** @var ServiceDefinition $service */
+		$service = $builder->getDefinition($presenterMapper);
+		$service->addSetup('setMapping', [$mapping]);
+	}
 
-		if ($presenterMapper) {
-			/** @var ServiceDefinition $service */
-			$service = $builder->getDefinition($presenterMapper);
-			$service->addSetup('setMapping', [$mapping]);
-		}
+
+	public static function getResizerLink(?bool $absolute = true): string
+	{
+		return ($absolute ? ':' : '') . self::PRESENTER_MAPPING . ':' . self::PRESENTER . ':';
 	}
 }
