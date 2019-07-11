@@ -53,7 +53,11 @@ Modificators:
 - Force dimensions:
 	- `100x200!` - resize to these dimensions, regardless of AR.
 
-## Usage
+Formats:
+
+- The fourth parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to webps.
+
+## Types
 
 Insert the src manually:
 
