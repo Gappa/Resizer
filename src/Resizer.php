@@ -175,6 +175,9 @@ final class Resizer implements IResizer
 	}
 
 
+	/**
+	 * @deprecated
+	 */
 	public function resize(
 		string $imagePath,
 		string $params = null,
@@ -184,6 +187,8 @@ final class Resizer implements IResizer
 		string $class = null,
 		bool $useAssets = false
 	): Html {
+
+		trigger_error('Macro {resize} is deprecated, use {rlink}, n:rsrc or n:rhref instead.', E_USER_DEPRECATED);
 		$resizedImage = $this->process($imagePath, $params, $useAssets);
 
 		return Html::el('img')
