@@ -13,12 +13,25 @@ use Nette\Http\Request;
 use Nette\InvalidStateException;
 use Nette\SmartObject;
 
+use Nette\Utils\ArrayHash;
 use Nette\Utils\Html;
 
 
 final class Resizer implements IResizer
 {
 	use SmartObject;
+
+	/** @var array */
+	private const SUPPORTED_FORMATS = [
+		'jpeg',
+		'jpg',
+		'gif',
+		'png',
+		'wbmp',
+		'xbm',
+		'webp',
+		'bmp',
+	];
 
 	/** @var string */
 	private $storageDir;
@@ -65,7 +78,8 @@ final class Resizer implements IResizer
 
 	public function setup(array $config): void
 	{
-		$config = \Nette\Utils\ArrayHash::from($config);
+		/** @var ArrayHash $config */
+		$config = ArrayHash::from($config);
 
 		$this->wwwDir = $config->paths->wwwDir;
 		$this->storageDir = $config->paths->storage;
@@ -88,8 +102,12 @@ final class Resizer implements IResizer
 	}
 
 
-	protected function process(string $imagePath, ?string $params, bool $useAssets = false): ?array
-	{
+	public function process(
+		string $imagePath,
+		?string $params,
+		bool $useAssets = false,
+		?string $format = null
+	): ?array {
 		// skippable argument defaults "hack" & backwards compat
 		if ($params === null or $params === 'auto') {
 			$params = 'x';
@@ -105,7 +123,7 @@ final class Resizer implements IResizer
 		$filename = pathinfo($imagePath, PATHINFO_FILENAME);
 		$extension = pathinfo($imagePath, PATHINFO_EXTENSION) ?? '.unknown';
 
-		$cacheFileName = $params . '.' . $extension;
+		$cacheFileName = $params . '.' . $this->getOutputFormat($extension, $format);
 		$imageOutputFilePath = $this->getImageOutputDir($imagePathFull) . $cacheFileName;
 
 		// file doesn't exist
@@ -164,14 +182,16 @@ final class Resizer implements IResizer
 		}
 
 		// build the output
-		return [
-			'name' => $filename . '.' . $params . '.' . $extension,
+		$output = [
+			'name' => $filename . '.' . $cacheFileName,
 			'imageInputFilePath' => $imagePathFull,
 			'imageOutputFilePath' => $imageOutputFilePath,
 			'imageOutputFileUrl' => $imageOutputFileUrl,
 			'imageOutputSize' => $imageOutputSize,
 			'imageExists' => $imageExists,
 		];
+
+		return $output;
 	}
 
 
@@ -187,7 +207,6 @@ final class Resizer implements IResizer
 		string $class = null,
 		bool $useAssets = false
 	): Html {
-
 		trigger_error('Macro {resize} is deprecated, use {rlink}, n:rsrc or n:rhref instead.', E_USER_DEPRECATED);
 		$resizedImage = $this->process($imagePath, $params, $useAssets);
 
@@ -199,12 +218,6 @@ final class Resizer implements IResizer
 			->title($title)
 			->id($id)
 			->class($class);
-	}
-
-
-	public function send(string $imagePath, ?string $params, bool $useAssets): ?array
-	{
-		return $this->process($imagePath, $params, $useAssets);
 	}
 
 
@@ -236,6 +249,22 @@ final class Resizer implements IResizer
 		}
 
 		return $dir;
+	}
+
+
+	private function getOutputFormat(string $extension, ?string $format = null): string
+	{
+		if (!empty($format) && $this->isFormatSupported($format)) {
+			return $format;
+		} else {
+			return $extension;
+		}
+	}
+
+
+	private function isFormatSupported(string $format): bool
+	{
+		return in_array(strtolower($format), self::SUPPORTED_FORMATS, true);
 	}
 
 

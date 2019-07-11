@@ -34,8 +34,9 @@ final class ResizerExtension extends CompilerExtension
 		'absoluteUrls' => false,
 		'interlace' => true, // progressive mode
 		'options' => [
+			'webp_quality' => 75, // 0 - 100
 			'jpeg_quality' => 75, // 0 - 100
-			'png_compression_level' => 7, // 0 - 9
+			'png_compression_level' => 9, // 0 - 9
 		],
 	];
 
