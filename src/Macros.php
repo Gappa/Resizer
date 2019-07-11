@@ -36,6 +36,8 @@ class Macros extends Latte\Macros\MacroSet
 				return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
 			}
 		);
+
+		$me->addMacro('rlink', [$me, 'macroResizer']);
 	}
 
 
