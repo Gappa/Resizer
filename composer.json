@@ -2,14 +2,15 @@
 	"name": "nelson/resizer",
 	"require": {
 		"php": ">= 7.1",
+		"ext-fileinfo": "*",
+		"latte/latte": "^2.5",
+		"nette/application": "^3.0",
 		"nette/di": "^3.0",
 		"nette/http": "^3.0",
 		"nette/utils": "^3.0",
-		"latte/latte": "^2.5",
 		"nette/caching": "^3.0",
-		"imagine/imagine": "^0.7.1",
-		"nepada/presenter-mapping": "^2.0",
-		"ext-fileinfo": "*"
+		"imagine/imagine": "^1.2.0"
+
 	},
 	"require-dev": {
 		"nette/tester": "^2.0",

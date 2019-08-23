@@ -28,6 +28,7 @@ final class ResizePresenter extends Presenter
 
 	public function __construct(IResizer $resizer)
 	{
+		parent::__construct();
 		$this->resizer = $resizer;
 	}
 
@@ -44,9 +45,13 @@ final class ResizePresenter extends Presenter
 	}
 
 
-	public function actionDefault(string $file, string $params = null, bool $useAssets = false): void
-	{
-		$image = $this->resizer->send($file, $params, $useAssets);
+	public function actionDefault(
+		string $file,
+		?string $params = null,
+		bool $useAssets = false,
+		?string $format = null
+	): void {
+		$image = $this->resizer->process($file, $params, $useAssets, $format);
 
 		if (!$image['imageExists']) {
 			$this->error('Image does not exist.');

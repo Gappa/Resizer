@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Nelson\Resizer\DI;
 
 use Nelson\Resizer\Resizer;
-use Nepada\PresenterMapping\PresenterMapper;
+use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\FactoryDefinition;
 use Nette\DI\ServiceDefinition;
@@ -14,23 +14,14 @@ use Nette\Schema\Schema;
 final class ResizerExtension extends CompilerExtension
 {
 
-	// /** @var array */
-	// protected $defaults = [
-	// 	'paths' => [
-	// 		'wwwDir' => '%wwwDir%',
-	// 		'storage' => null,
-	// 		'assets' => null,
-	// 		'cache' => '%wwwDir%/cache/images/',
-	// 	],
-	// 	'library' => 'Imagick', // Gd/Imagick/Gmagick
-	// 	'cacheNS' => 'resizer',
-	// 	'absoluteUrls' => false,
-	// 	'interlace' => true, // progressive mode
-	// 	'options' => [
-	// 		'jpeg_quality' => 75, // 0 - 100
-	// 		'png_compression_level' => 7, // 0 - 9
-	// 	],
-	// ];
+	/** @var string */
+	public const PRESENTER_MAPPING = 'Resizer';
+
+	/** @var string */
+	public const PRESENTER = 'Resize';
+
+	/** @var string */
+	public const ACTION = 'default';
 
 
 	public function getConfigSchema(): Schema
@@ -47,8 +38,9 @@ final class ResizerExtension extends CompilerExtension
 			'absoluteUrls' => Expect::bool(false),
 			'interlace' => Expect::bool(true), // progressive mode
 			'options' => Expect::structure([
+				'webp_quality' => Expect::int(75)->min(0)->max(100),
 				'jpeg_quality' => Expect::int(75)->min(0)->max(100),
-				'png_compression_level' => Expect::int(9)->min(0)->max(9), // 0 - 9
+				'png_compression_level' => Expect::int(9)->min(0)->max(9),
 			]),
 		]);
 	}
@@ -80,15 +72,20 @@ final class ResizerExtension extends CompilerExtension
 				->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
 		}
 
-
 		// Presenter mappings
-		$mapping = ['Base:Resizer' => '\Nelson\Resizer\Presenters\*Presenter'];
-		$presenterMapper = $builder->getByType(PresenterMapper::class);
+		$mapping = [self::PRESENTER_MAPPING => '\Nelson\Resizer\Presenters\*Presenter'];
+		$presenterMapper = $builder->getByType(IPresenterFactory::class);
 
 		if ($presenterMapper) {
 			/** @var ServiceDefinition $service */
 			$service = $builder->getDefinition($presenterMapper);
 			$service->addSetup('setMapping', [$mapping]);
 		}
+	}
+
+
+	public static function getResizerLink(?bool $absolute = true): string
+	{
+		return ($absolute ? ':' : '') . self::PRESENTER_MAPPING . ':' . self::PRESENTER . ':';
 	}
 }

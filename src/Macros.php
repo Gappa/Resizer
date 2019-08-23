@@ -8,6 +8,7 @@ use Latte;
 use Latte\HtmlNode;
 use Latte\MacroNode;
 use Latte\PhpWriter;
+use Nelson\Resizer\DI\ResizerExtension;
 
 class Macros extends Latte\Macros\MacroSet
 {
@@ -35,6 +36,8 @@ class Macros extends Latte\Macros\MacroSet
 				return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
 			}
 		);
+
+		$me->addMacro('rlink', [$me, 'macroResizer']);
 	}
 
 
@@ -42,7 +45,7 @@ class Macros extends Latte\Macros\MacroSet
 	{
 		$absolute = substr($node->args, 0, 2) === '//' ? '//' : '';
 		$args = $absolute ? substr($node->args, 2) : $node->args;
-		return $writer->write('echo %escape(%modify($presenter->link("' . $absolute . ':Base:Resizer:Resize:", Nelson\Resizer\Macros::prepareArguments([' . $args . ']))))');
+		return $writer->write('echo %escape(%modify($presenter->link("' . $absolute . ResizerExtension::getResizerLink() . '", Nelson\Resizer\Macros::prepareArguments([' . $args . ']))))');
 	}
 
 

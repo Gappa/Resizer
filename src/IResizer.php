@@ -7,6 +7,7 @@ use Nette\Utils\Html;
 
 interface IResizer
 {
+	/** @deprecated */
 	public function resize(
 		string $path,
 		string $irParams = null,
@@ -17,9 +18,10 @@ interface IResizer
 		bool $useAssets = false
 	): Html;
 
-	public function send(
+	public function process(
 		string $path,
 		?string $params,
-		bool $useAssets
+		bool $useAssets,
+		?string $format
 	): ?array;
 }

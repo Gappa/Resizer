@@ -5,13 +5,25 @@
 	```
 	extensions:
 		resizer: Nelson\Resizer\DI\ResizerExtension
-		- Nepada\Bridges\PresenterMappingDI\PresenterMappingExtension
 	```
 3. Config:
+
+	These are the default values. 
+	Empty values are required.
 	```
 	resizer:
-		paths:
-			wwwDir: %wwwDir%
+   	paths:
+   		wwwDir: '%wwwDir%'
+   		storage: 
+   		assets: 
+   		cache: '%wwwDir%/cache/images/'
+   	library: 'Imagick'
+   	cacheNS: 'resizer'
+   	absoluteUrls: false
+   	interlace: true
+   		jpeg_quality: 75
+   		webp_quality: 75
+   		png_compression_level: 9
 	```
 
 # Usage
@@ -21,6 +33,7 @@ Order of parameters:
 1. Image file. `string`
 2. Dimensions. `string`
 3. From assets? `bool`
+4. Format. `string`
 
 ## Dimensions
 
@@ -40,20 +53,15 @@ Modificators:
 - Force dimensions:
 	- `100x200!` - resize to these dimensions, regardless of AR.
 
+Formats:
+
+- The fourth parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to webps.
+
 ## Types
-
-### Internal
-
-- Does insert computed dimensions, but runs in the same thread as the webpage. Will be very slow on first run and even might run out of memory and/or time out.
-- `{=$image, $dimensions, $alt, $title, $id, $class, $useAssets|resizer}`
-
-Only the first two arguments (`$image`, `$dimensions`) are required.
-
-### External
 
 Insert the src manually:
 
-- `<img src="{plink :Base:Resizer:Resize: 'test.jpg', '200x100'}">`
+- `<img src="{rlink 'test.jpg', '200x100'}">`
 
 Or there are two new macros - `rsrc` and `rhref`:
 
