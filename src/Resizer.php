@@ -79,8 +79,8 @@ final class Resizer implements IResizer
 	public function setup(stdClass $config): void
 	{
 		$this->wwwDir = $config->paths->wwwDir;
-		$this->storageDir = $this->wwwDir . $config->paths->storage;
-		$this->assetsDir = $this->wwwDir . $config->paths->assets;
+		$this->storageDir = $config->paths->storage;
+		$this->assetsDir = $config->paths->assets;
 		$this->cacheDir = $this->wwwDir . $config->paths->cache;
 		$this->options = $config->options;
 
