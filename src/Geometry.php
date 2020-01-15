@@ -39,6 +39,8 @@ class Geometry
 				'verticalMargin' => $matches[8],
 			];
 		}
+
+		return null;
 	}
 
 

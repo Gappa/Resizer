@@ -20,7 +20,6 @@ final class ResizerExtension extends CompilerExtension
 	/** @var string */
 	public const ACTION = 'default';
 
-
 	/** @var array */
 	protected $defaults = [
 		'paths' => [
