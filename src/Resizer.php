@@ -7,6 +7,7 @@ use Imagine\Exception\RuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Imagine\Image\Metadata\DefaultMetadataReader;
 use Nette\Caching\Cache;
 use Nette\Caching\IStorage;
 use Nette\Http\Request;
@@ -99,6 +100,7 @@ final class Resizer implements IResizer
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
 
 		$this->imagine = new $library;
+		$this->imagine->setMetadataReader(new DefaultMetadataReader());
 	}
 
 
