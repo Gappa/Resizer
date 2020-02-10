@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Exception;
-use Latte\Macros\MacroSet;
+use Latte\Compiler;
 use Latte\HtmlNode;
 use Latte\MacroNode;
+use Latte\Macros\MacroSet;
 use Latte\PhpWriter;
-use Latte\Compiler;
 use Nelson\Resizer\DI\ResizerExtension;
 
 final class Macros extends MacroSet
