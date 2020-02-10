@@ -79,7 +79,7 @@ final class ResizePresenter extends Presenter
 	}
 
 
-	private function getMimeType($filePath): ?string
+	private function getMimeType(string $filePath): ?string
 	{
 		$mime = mime_content_type($filePath);
 

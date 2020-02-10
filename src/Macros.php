@@ -4,15 +4,16 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Exception;
-use Latte;
+use Latte\Macros\MacroSet;
 use Latte\HtmlNode;
 use Latte\MacroNode;
 use Latte\PhpWriter;
+use Latte\Compiler;
 use Nelson\Resizer\DI\ResizerExtension;
 
-class Macros extends Latte\Macros\MacroSet
+final class Macros extends MacroSet
 {
-	public static function install(Latte\Compiler $parser)
+	public static function install(Compiler $parser): void
 	{
 		$me = new static($parser);
 
@@ -41,7 +42,7 @@ class Macros extends Latte\Macros\MacroSet
 	}
 
 
-	public function macroResizer(MacroNode $node, PhpWriter $writer)
+	public function macroResizer(MacroNode $node, PhpWriter $writer): string
 	{
 		$absolute = substr($node->args, 0, 2) === '//' ? '//' : '';
 		$args = $absolute ? substr($node->args, 2) : $node->args;
