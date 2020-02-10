@@ -89,9 +89,6 @@ final class Resizer implements IResizer
 		$this->basePath = !empty($config->absoluteUrls) ? $url->getBaseUrl() : $url->getBasePath();
 		$this->interlace = (bool) $config->interlace;
 
-		$this->testStorageDir();
-		$this->testCacheDir();
-
 		$this->cache = new Cache($this->cacheStorage, $config->cacheNS);
 
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
@@ -276,25 +273,4 @@ final class Resizer implements IResizer
 		return $params;
 	}
 
-
-	/**
-	 * @throws InvalidStateException
-	 */
-	private function testCacheDir(): void
-	{
-		if (!is_dir($this->cacheDir) || !is_writable($this->cacheDir)) {
-			throw new InvalidStateException("Thumbnail path '$this->cacheDir' does not exists or is not writable.");
-		}
-	}
-
-
-	/**
-	 * @throws InvalidStateException
-	 */
-	private function testStorageDir(): void
-	{
-		if (!is_dir($this->storageDir) || !is_writable($this->storageDir)) {
-			throw new InvalidStateException("Storage path '$this->storageDir' does not exists or is not writable.");
-		}
-	}
 }
