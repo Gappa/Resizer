@@ -107,15 +107,8 @@ final class Resizer implements IResizer
 		bool $useAssets = false,
 		?string $format = null
 	): ?array {
-		// skippable argument defaults "hack" & backwards compat
-		if ($params === null or $params === 'auto') {
-			$params = 'x';
-		}
 
-		// filepath isn't even specified
-		if (empty($imagePath)) {
-			return null;
-		}
+		$params = $this->normalizeParams($params);
 
 		$imagePathFull = ($useAssets ? $this->assetsDir : $this->storageDir) . $imagePath;
 
@@ -270,6 +263,17 @@ final class Resizer implements IResizer
 	private function getImageOutputUrl(string $path): string
 	{
 		return $this->basePath . preg_replace('#^' . $this->wwwDir . '\/#', '', $path);
+	}
+
+
+	private function normalizeParams(string $params): string
+	{
+		// skippable argument defaults "hack" & backwards compat
+		if ($params === null or $params === 'auto') {
+			return 'x';
+		}
+
+		return $params;
 	}
 
 
