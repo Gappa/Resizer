@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
+use Exception;
 use Imagine\Exception\RuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
@@ -115,59 +116,56 @@ final class Resizer implements IResizer
 		$cacheFileName = $params . '.' . $this->getOutputFormat($extension, $format);
 		$imageOutputFilePath = $this->getImageOutputDir($imagePathFull) . $cacheFileName;
 
-		// file doesn't exist
 		if (!is_file($imagePathFull)) {
+			throw new Exception('Source image not found or not readable.');
+		}
+
+		$imageOutputFileUrl = $this->getImageOutputUrl($imageOutputFilePath);
+		$geometry = Geometry::parseGeometry($params);
+		$imageExists = true;
+
+		// the file might be corrupted
+		try {
+			if (
+				// thumbnail doesn't exist, create it
+				!is_file($imageOutputFilePath)
+				or
+				// thumbnail exists, but for whatever reason it's empty
+				(is_file($imageOutputFilePath) and !filesize($imageOutputFilePath))
+			) {
+				/** @var ImageInterface $image */
+				$image = $this->imagine->open($imagePathFull);
+				$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
+				$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
+
+				$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
+				if (Geometry::isCrop($geometry)) {
+					$image->crop(
+						Geometry::getCropPoint($geometry, $imageOutputSize),
+						new Box($geometry['width'], $geometry['height'])
+					);
+				}
+
+				// remove all comments & metadata
+				$image->strip();
+
+				// use progressive/interlace mode?
+				if ($this->interlace) {
+					$image->interlace(ImageInterface::INTERLACE_LINE);
+				}
+
+				$image->save($imageOutputFilePath, (array) $this->options);
+			} else {
+				$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
+			}
+		} catch (RuntimeException $e) {
 			$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
 			$imageOutputSize = ['width' => null, 'height' => null];
 			$imageExists = false;
-		} else {
-			$imageOutputFileUrl = $this->getImageOutputUrl($imageOutputFilePath);
-			$geometry = Geometry::parseGeometry($params);
-			$imageExists = true;
+		}
 
-			// the file might be corrupted
-			try {
-				if (
-					// thumbnail doesn't exist, create it
-					!is_file($imageOutputFilePath)
-					or
-					// thumbnail exists, but for whatever reason it's empty
-					(is_file($imageOutputFilePath) and !filesize($imageOutputFilePath))
-				) {
-					/** @var ImageInterface $image */
-					$image = $this->imagine->open($imagePathFull);
-					$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
-					$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
-
-					$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
-					if (Geometry::isCrop($geometry)) {
-						$image->crop(
-							Geometry::getCropPoint($geometry, $imageOutputSize),
-							new Box($geometry['width'], $geometry['height'])
-						);
-					}
-
-					// remove all comments & metadata
-					$image->strip();
-
-					// use progressive/interlace mode?
-					if ($this->interlace) {
-						$image->interlace(ImageInterface::INTERLACE_LINE);
-					}
-
-					$image->save($imageOutputFilePath, (array) $this->options);
-				} else {
-					$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
-				}
-			} catch (RuntimeException $e) {
-				$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
-				$imageOutputSize = ['width' => null, 'height' => null];
-				$imageExists = false;
-			}
-
-			if (Geometry::isCrop($geometry)) {
-				$imageOutputSize = $geometry;
-			}
+		if (Geometry::isCrop($geometry)) {
+			$imageOutputSize = $geometry;
 		}
 
 		// build the output
@@ -272,5 +270,6 @@ final class Resizer implements IResizer
 
 		return $params;
 	}
+
 
 }
