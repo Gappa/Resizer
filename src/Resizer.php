@@ -161,32 +161,6 @@ final class Resizer implements IResizer
 	}
 
 
-	/**
-	 * @deprecated
-	 */
-	public function resize(
-		string $imagePath,
-		string $params = null,
-		string $alt = null,
-		string $title = null,
-		string $id = null,
-		string $class = null,
-		bool $useAssets = false
-	): Html {
-		trigger_error('Macro {resize} is deprecated, use {rlink}, n:rsrc or n:rhref instead.', E_USER_DEPRECATED);
-		$resizedImage = $this->process($imagePath, $params, $useAssets);
-
-		return Html::el('img')
-			->src($resizedImage['imageOutputFileUrl'])
-			->width($resizedImage['imageOutputSize']['width'])
-			->height($resizedImage['imageOutputSize']['height'])
-			->alt($alt)
-			->title($title)
-			->id($id)
-			->class($class);
-	}
-
-
 	public function openImage(string $filepath): ImageInterface
 	{
 		return $this->imagine->open($filepath);
