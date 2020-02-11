@@ -22,5 +22,9 @@
 		"psr-4": {
 			"Nelson\\Resizer\\": "src/"
 		}
+	},
+	"scripts": {
+		"phpstan": "./phpstan/phpstan",
+		"tests": "./tests/tests"
 	}
 }
