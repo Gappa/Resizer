@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Presenters;
 
+use Exception;
 use Nelson\Resizer\IResizer;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
@@ -51,10 +52,10 @@ final class ResizePresenter extends Presenter
 		bool $useAssets = false,
 		?string $format = null
 	): void {
-		$image = $this->resizer->process($file, $params, $useAssets, $format);
-
-		if (!$image) {
-			$this->error('Image does not exist.');
+		try {
+			$image = $this->resizer->process($file, $params, $useAssets, $format);
+		} catch (Exception $e) {
+			$this->error($e->getMessage());
 		}
 
 		$context = new Context($this->request, $this->response);

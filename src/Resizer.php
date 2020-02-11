@@ -10,17 +10,8 @@ use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
 use Imagine\Image\Metadata\DefaultMetadataReader;
 use Nelson\Resizer\DI\ResizerConfig;
-use Nette\Caching\Cache;
-use Nette\Caching\IStorage;
-use Nette\Caching\Storages\FileStorage;
-use Nette\Http\Request;
-use Nette\InvalidStateException;
 use Nette\SmartObject;
-
 use Nette\Utils\FileSystem;
-use Nette\Utils\Html;
-use stdClass;
-
 
 final class Resizer implements IResizer
 {
@@ -93,7 +84,7 @@ final class Resizer implements IResizer
 		$extension = pathinfo($path, PATHINFO_EXTENSION) ?? '.unknown';
 
 		$cacheFileName = $params . '.' . $this->getOutputFormat($extension, $format);
-		$thumbnailPath = $this->getImageOutputDir($path) . $cacheFileName;
+		$thumbnailPath = $this->getImageOutputDir($imagePathSource) . $cacheFileName;
 
 		if (!is_file($imagePathSource)) {
 			throw new Exception('Source image not found or not readable.');
@@ -102,7 +93,11 @@ final class Resizer implements IResizer
 		$geometry = Geometry::parseGeometry($params);
 
 		if (!$this->thumbnailExists($thumbnailPath)) {
-			$thumbnail = $this->processImage($imagePathSource, $geometry);
+			try {
+				$thumbnail = $this->processImage($imagePathSource, $geometry);
+			} catch (RuntimeException $e) {
+				throw new Exception('Unable to open image - wrong permissions, empty or corrupted.');
+			}
 
 			// remove all comments & metadata
 			$thumbnail->strip();
