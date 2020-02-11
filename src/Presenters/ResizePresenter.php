@@ -60,7 +60,7 @@ final class ResizePresenter extends Presenter
 
 		$context = new Context($this->request, $this->response);
 		$etag = $this->getEtag(
-			$this->resizer->getImagePath($file, $useAssets),
+			$this->resizer->getSourceImagePath($file, $useAssets),
 			$image);
 
 		if (!$context->isModified(null, $etag)) {

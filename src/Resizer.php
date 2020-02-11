@@ -79,14 +79,14 @@ final class Resizer implements IResizer
 	{
 
 		$params = $this->normalizeParams($params);
-		$imagePathSource = $this->getImagePath($path, $useAssets);
+		$sourceImagePath = $this->getSourceImagePath($path, $useAssets);
 
 		$extension = pathinfo($path, PATHINFO_EXTENSION) ?? '.unknown';
 
-		$cacheFileName = $params . '.' . $this->getOutputFormat($extension, $format);
-		$thumbnailPath = $this->getImageOutputDir($imagePathSource) . $cacheFileName;
+		$thumbnailFileName = $params . '.' . $this->getOutputFormat($extension, $format);
+		$thumbnailPath = $this->getThumbnailDir($sourceImagePath) . $thumbnailFileName;
 
-		if (!is_file($imagePathSource)) {
+		if (!is_file($sourceImagePath)) {
 			throw new Exception('Source image not found or not readable.');
 		}
 
@@ -94,7 +94,7 @@ final class Resizer implements IResizer
 
 		if (!$this->thumbnailExists($thumbnailPath)) {
 			try {
-				$thumbnail = $this->processImage($imagePathSource, $geometry);
+				$thumbnail = $this->processImage($sourceImagePath, $geometry);
 			} catch (RuntimeException $e) {
 				throw new Exception('Unable to open image - wrong permissions, empty or corrupted.');
 			}
@@ -114,7 +114,7 @@ final class Resizer implements IResizer
 	}
 
 
-	public function getImageOutputDir(string $path): string
+	public function getThumbnailDir(string $path): string
 	{
 		$dir = $this->cacheDir . preg_replace('#^' . $this->config->wwwDir . '\/#', '', ($path)) . DIRECTORY_SEPARATOR;
 
@@ -124,7 +124,7 @@ final class Resizer implements IResizer
 	}
 
 
-	public function getImagePath(string $path, bool $useAssets): string
+	public function getSourceImagePath(string $path, bool $useAssets): string
 	{
 		return ($useAssets ? $this->assetsDir : $this->storageDir) . $path;
 	}
@@ -146,7 +146,7 @@ final class Resizer implements IResizer
 	}
 
 
-	private function normalizeParams(string $params): string
+	private function normalizeParams(?string $params): string
 	{
 		// skippable argument defaults "hack" & backwards compat
 		if ($params === null or $params === 'auto') {
@@ -162,7 +162,6 @@ final class Resizer implements IResizer
 		array $geometry
 	): ImageInterface
 	{
-		/** @var ImageInterface $image */
 		$image = $this->imagine->open($imagePathFull);
 		$imageCurSize = $image->getSize();
 		$imageOutputSize = Geometry::calculateNewSize(
@@ -187,7 +186,7 @@ final class Resizer implements IResizer
 
 	private function thumbnailExists(string $path): bool
 	{
-		return is_file($path) and (bool)filesize($path);
+		return is_file($path) and (bool) filesize($path);
 	}
 
 

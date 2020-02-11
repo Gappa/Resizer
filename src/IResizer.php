@@ -5,10 +5,10 @@ namespace Nelson\Resizer;
 
 interface IResizer
 {
-	public function process(
-		string $path,
-		?string $params,
-		bool $useAssets,
-		?string $format
-	): ?string;
+
+	public function process(string $path, ?string $params, bool $useAssets, ?string $format): ?string;
+
+
+	public function getSourceImagePath(string $path, bool $useAssets): string;
+
 }
