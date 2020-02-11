@@ -9,12 +9,15 @@ use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
 use Imagine\Image\Metadata\DefaultMetadataReader;
+use Nelson\Resizer\DI\ResizerConfig;
 use Nette\Caching\Cache;
 use Nette\Caching\IStorage;
+use Nette\Caching\Storages\FileStorage;
 use Nette\Http\Request;
 use Nette\InvalidStateException;
 use Nette\SmartObject;
 
+use Nette\Utils\FileSystem;
 use Nette\Utils\Html;
 use stdClass;
 
@@ -53,11 +56,14 @@ final class Resizer implements IResizer
 	/** @var AbstractImagine */
 	private $imagine;
 
-	/** @var Cache */
-	private $cache;
-
 	/** @var IStorage */
 	private $cacheStorage;
+
+	/** @var Cache */
+	private $metadataCache;
+
+	/** @var Cache */
+	private $imageCache;
 
 	/** @var array */
 	private $options = [];
@@ -78,19 +84,28 @@ final class Resizer implements IResizer
 	}
 
 
-	public function setup(stdClass $config): void
+	public function setup(ResizerConfig $config): void
 	{
-		$this->wwwDir = $config->paths->wwwDir;
-		$this->storageDir = $config->paths->storage;
-		$this->assetsDir = $config->paths->assets;
-		$this->cacheDir = $this->wwwDir . $config->paths->cache;
-		$this->options = $config->options;
+		$this->wwwDir = $config->wwwDir;
+		$this->storageDir = $config->storage;
+		$this->assetsDir = $config->assets;
+		$this->cacheDir = $this->wwwDir . $config->cache;
+		$this->options = [
+			'webp_quality' => $config->qualityWebp,
+			'jpeg_quality' => $config->qualityJpeg,
+			'png_compression_level' => $config->qualityPng,
+		];
 
 		$url = $this->httpRequest->getUrl();
 		$this->basePath = !empty($config->absoluteUrls) ? $url->getBaseUrl() : $url->getBasePath();
 		$this->interlace = (bool) $config->interlace;
 
-		$this->cache = new Cache($this->cacheStorage, $config->cacheNS);
+		$this->metadataCache = new Cache($this->cacheStorage, $config->cacheNS);
+
+		// $imageStorageDir = $config->tempDir . '/' . $config->cacheNS . '/';
+		// FileSystem::createDir($imageStorageDir);
+		// $imageStorage = new FileStorage($imageStorageDir);
+		// $this->imageCache = new Cache($imageStorage, 'images');
 
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
 
@@ -126,7 +141,7 @@ final class Resizer implements IResizer
 
 		// thumbnail exists & isn't an empty file
 		if (is_file($imageOutputFilePath) and filesize($imageOutputFilePath)) {
-			$imageOutputSize = $this->cache->call([$this, 'getImageSize'], $imageOutputFilePath);
+			$imageOutputSize = $this->metadataCache->call([$this, 'getImageSize'], $imageOutputFilePath);
 		} else {
 			// the file might be corrupted and can't be processed
 			try {
@@ -233,7 +248,7 @@ final class Resizer implements IResizer
 	{
 		/** @var ImageInterface $image */
 		$image = $this->imagine->open($imagePathFull);
-		$imageCurSize = $this->cache->call([$this, 'getImageSize'], $imagePathFull);
+		$imageCurSize = $this->metadataCache->call([$this, 'getImageSize'], $imagePathFull);
 		$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
 
 		$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
