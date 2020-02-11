@@ -37,7 +37,7 @@ final class ResizerConfig
 	public $assets = '/assets/';
 
 	/** @var string */
-	public $cache = '/cache/images/';
+	public $cache = '/resizer/';
 
 	/**
 	 * 0 - 100

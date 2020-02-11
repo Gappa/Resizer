@@ -53,21 +53,23 @@ final class ResizePresenter extends Presenter
 	): void {
 		$image = $this->resizer->process($file, $params, $useAssets, $format);
 
-		if (!$image['imageExists']) {
+		if (!$image) {
 			$this->error('Image does not exist.');
 		}
 
 		$context = new Context($this->request, $this->response);
-		$etag = $this->getEtag($image['imageInputFilePath'], $image['imageOutputFilePath']);
+		$etag = $this->getEtag(
+			$this->resizer->getImagePath($file, $useAssets),
+			$image);
 
 		if (!$context->isModified(null, $etag)) {
 			$this->response->setCode(Response::S304_NOT_MODIFIED);
 			$this->sendResponse(new TextResponse(''));
 		} else {
 			$fileResponse = new FileResponse(
-				$image['imageOutputFilePath'],
-				$image['name'],
-				$this->getMimeType($image['imageOutputFilePath']),
+				$image,
+				pathinfo($file, PATHINFO_BASENAME),
+				$this->getMimeType($image),
 				false
 			);
 

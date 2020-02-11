@@ -10,5 +10,5 @@ interface IResizer
 		?string $params,
 		bool $useAssets,
 		?string $format
-	): ?array;
+	): ?string;
 }

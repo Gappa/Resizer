@@ -38,6 +38,9 @@ final class Resizer implements IResizer
 		'bmp',
 	];
 
+	/** @var ResizerConfig */
+	private $config;
+
 	/** @var string */
 	private $storageDir;
 
@@ -47,65 +50,33 @@ final class Resizer implements IResizer
 	/** @var string */
 	private $cacheDir;
 
-	/** @var string */
-	private $wwwDir;
-
-	/** @var string */
-	private $basePath;
-
 	/** @var AbstractImagine */
 	private $imagine;
-
-	/** @var IStorage */
-	private $cacheStorage;
-
-	/** @var Cache */
-	private $metadataCache;
-
-	/** @var Cache */
-	private $imageCache;
 
 	/** @var array */
 	private $options = [];
 
-	/** @var Request */
-	private $httpRequest;
-
-	/** @var bool */
-	private $interlace;
-
 
 	public function __construct(
-		Request $request,
-		IStorage $cacheStorage
-	) {
-		$this->httpRequest = $request;
-		$this->cacheStorage = $cacheStorage;
+	)
+	{
 	}
 
 
 	public function setup(ResizerConfig $config): void
 	{
-		$this->wwwDir = $config->wwwDir;
+		$this->config = $config;
 		$this->storageDir = $config->storage;
 		$this->assetsDir = $config->assets;
-		$this->cacheDir = $this->wwwDir . $config->cache;
+
+		$this->cacheDir = $config->tempDir . $config->cache;
+		FileSystem::createDir($this->cacheDir);
+
 		$this->options = [
 			'webp_quality' => $config->qualityWebp,
 			'jpeg_quality' => $config->qualityJpeg,
 			'png_compression_level' => $config->qualityPng,
 		];
-
-		$url = $this->httpRequest->getUrl();
-		$this->basePath = !empty($config->absoluteUrls) ? $url->getBaseUrl() : $url->getBasePath();
-		$this->interlace = (bool) $config->interlace;
-
-		$this->metadataCache = new Cache($this->cacheStorage, $config->cacheNS);
-
-		// $imageStorageDir = $config->tempDir . '/' . $config->cacheNS . '/';
-		// FileSystem::createDir($imageStorageDir);
-		// $imageStorage = new FileStorage($imageStorageDir);
-		// $this->imageCache = new Cache($imageStorage, 'images');
 
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
 
@@ -115,95 +86,58 @@ final class Resizer implements IResizer
 
 
 	public function process(
-		string $imagePath,
+		string $path,
 		?string $params,
 		bool $useAssets = false,
 		?string $format = null
-	): ?array {
+	): ?string
+	{
 
 		$params = $this->normalizeParams($params);
+		$imagePathSource = $this->getImagePath($path, $useAssets);
 
-		$imagePathFull = ($useAssets ? $this->assetsDir : $this->storageDir) . $imagePath;
-
-		$filename = pathinfo($imagePath, PATHINFO_FILENAME);
-		$extension = pathinfo($imagePath, PATHINFO_EXTENSION) ?? '.unknown';
+		$extension = pathinfo($path, PATHINFO_EXTENSION) ?? '.unknown';
 
 		$cacheFileName = $params . '.' . $this->getOutputFormat($extension, $format);
-		$imageOutputFilePath = $this->getImageOutputDir($imagePathFull) . $cacheFileName;
+		$thumbnailPath = $this->getImageOutputDir($path) . $cacheFileName;
 
-		if (!is_file($imagePathFull)) {
+		if (!is_file($imagePathSource)) {
 			throw new Exception('Source image not found or not readable.');
 		}
 
-		$imageOutputFileUrl = $this->getImageOutputUrl($imageOutputFilePath);
 		$geometry = Geometry::parseGeometry($params);
-		$imageExists = true;
 
-		// thumbnail exists & isn't an empty file
-		if (is_file($imageOutputFilePath) and filesize($imageOutputFilePath)) {
-			$imageOutputSize = $this->metadataCache->call([$this, 'getImageSize'], $imageOutputFilePath);
-		} else {
-			// the file might be corrupted and can't be processed
-			try {
-				$imageOutputSize = $this->processImage(
-					$imagePathFull,
-					$imageOutputFilePath,
-					$geometry
-				);
-			} catch (RuntimeException $e) {
-				$imageOutputFileUrl = $this->getImageOutputUrl($imagePathFull);
-				$imageOutputSize = ['width' => null, 'height' => null];
-				$imageExists = false;
+		if (!$this->thumbnailExists($thumbnailPath)) {
+			$thumbnail = $this->processImage($imagePathSource, $geometry);
+
+			// remove all comments & metadata
+			$thumbnail->strip();
+
+			// use progressive/interlace mode?
+			if ($this->config->interlace) {
+				$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
 			}
+
+			$thumbnail->save($thumbnailPath, $this->options);
 		}
 
-		// Overwrite
-		if (Geometry::isCrop($geometry)) {
-			$imageOutputSize = $geometry;
-		}
-
-		// build the output
-		$output = [
-			'name' => $filename . '.' . $cacheFileName,
-			'imageInputFilePath' => $imagePathFull,
-			'imageOutputFilePath' => $imageOutputFilePath,
-			'imageOutputFileUrl' => $imageOutputFileUrl,
-			'imageOutputSize' => $imageOutputSize,
-			'imageExists' => $imageExists,
-		];
-
-		return $output;
+		return $thumbnailPath;
 	}
 
 
-	public function openImage(string $filepath): ImageInterface
+	public function getImageOutputDir(string $path): string
 	{
-		return $this->imagine->open($filepath);
-	}
+		$dir = $this->cacheDir . preg_replace('#^' . $this->config->wwwDir . '\/#', '', ($path)) . DIRECTORY_SEPARATOR;
 
-
-	public function getImageSize(string $filepath): array
-	{
-		$imageSize = $this->openImage($filepath)->getSize();
-
-		return [
-			'width' => $imageSize->getWidth(),
-			'height' => $imageSize->getHeight(),
-		];
-	}
-
-
-	public function getImageOutputDir(string $filepath): string
-	{
-		$dir = $this->cacheDir . preg_replace('#^' . $this->wwwDir . '\/#', '', ($filepath)) . DIRECTORY_SEPARATOR;
-
-		if (!is_dir($dir)) {
-			$umask = umask(0);
-			mkdir($dir, 0777, true);
-			umask($umask);
-		}
+		FileSystem::createDir($dir);
 
 		return $dir;
+	}
+
+
+	public function getImagePath(string $path, bool $useAssets): string
+	{
+		return ($useAssets ? $this->assetsDir : $this->storageDir) . $path;
 	}
 
 
@@ -223,12 +157,6 @@ final class Resizer implements IResizer
 	}
 
 
-	private function getImageOutputUrl(string $path): string
-	{
-		return $this->basePath . preg_replace('#^' . $this->wwwDir . '\/#', '', $path);
-	}
-
-
 	private function normalizeParams(string $params): string
 	{
 		// skippable argument defaults "hack" & backwards compat
@@ -242,14 +170,19 @@ final class Resizer implements IResizer
 
 	private function processImage(
 		string $imagePathFull,
-		string $imageOutputFilePath,
 		array $geometry
-	): array
+	): ImageInterface
 	{
 		/** @var ImageInterface $image */
 		$image = $this->imagine->open($imagePathFull);
-		$imageCurSize = $this->metadataCache->call([$this, 'getImageSize'], $imagePathFull);
-		$imageOutputSize = Geometry::calculateNewSize($imageCurSize, $geometry);
+		$imageCurSize = $image->getSize();
+		$imageOutputSize = Geometry::calculateNewSize(
+			[
+				'width' => $imageCurSize->getWidth(),
+				'height' => $imageCurSize->getHeight()
+			],
+			$geometry
+		);
 
 		$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
 		if (Geometry::isCrop($geometry)) {
@@ -259,17 +192,13 @@ final class Resizer implements IResizer
 			);
 		}
 
-		// remove all comments & metadata
-		$image->strip();
+		return $image;
+	}
 
-		// use progressive/interlace mode?
-		if ($this->interlace) {
-			$image->interlace(ImageInterface::INTERLACE_LINE);
-		}
 
-		$image->save($imageOutputFilePath, (array) $this->options);
-
-		return $imageOutputSize;
+	private function thumbnailExists(string $path): bool
+	{
+		return is_file($path) and (bool)filesize($path);
 	}
 
 
