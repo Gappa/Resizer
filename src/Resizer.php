@@ -57,13 +57,7 @@ final class Resizer implements IResizer
 	private $options = [];
 
 
-	public function __construct(
-	)
-	{
-	}
-
-
-	public function setup(ResizerConfig $config): void
+	public function __construct(ResizerConfig $config)
 	{
 		$this->config = $config;
 		$this->storageDir = $config->storage;

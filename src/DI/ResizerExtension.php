@@ -37,7 +37,7 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class)
-			->addSetup('setup', [$config]);
+			->setArgument('config', $config);
 	}
 
 
