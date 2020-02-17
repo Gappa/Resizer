@@ -60,7 +60,7 @@ final class Resizer implements IResizer
 		$this->options = [
 			'webp_quality' => $config->qualityWebp,
 			'jpeg_quality' => $config->qualityJpeg,
-			'png_compression_level' => $config->qualityPng,
+			'png_compression_level' => $config->compressionPng,
 		];
 
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
