@@ -12,18 +12,17 @@
 	Empty values are required.
 	```
 	resizer:
-   	paths:
-   		wwwDir: '%wwwDir%'
-   		storage: 
-   		assets: 
-   		cache: '%wwwDir%/cache/images/'
-   	library: 'Imagick'
-   	cacheNS: 'resizer'
+   	wwwDir: %wwwDir%
+		tempDir: %tempDir%
+   	storage: '/storage/' # inside %wwwDir%
+   	assets: '/assets/' # inside %wwwDir%
+		cache: '/resizer/' # inside %tempDir%
+   	library: 'Imagick' # imagine supports Gd|Imagick|Gmagick
    	absoluteUrls: false
    	interlace: true
-   		jpeg_quality: 75
-   		webp_quality: 75
-   		png_compression_level: 9
+   	qualityJpeg: 75
+   	qualityWebp: 75
+   	compressionPng: 9
 	```
 
 # Usage
@@ -61,16 +60,11 @@ Formats:
 
 Insert the src manually:
 
-- `<img src="{rlink 'test.jpg', '200x100'}">`
-
-Or there are two new macros - `rsrc` and `rhref`:
-
-- `<img n:rsrc="'test.jpg', 'l400xc200'">`
-- `<a n:rhref="'test.jpg', 'l400xc200'" target="_blank">Link to image</a>`
+- `<img src="{rlink 'test.jpg', '200x100'}">``
 
 Links can also be absolute, the usage is just like everywhere in Nette - `//`.
 
 Beware of the usage in macro, the slashes need to be outside of the string:
 
-- `<img n:rsrc="//'test.jpg', 'l400xc200'">`
-- `<a n:rhref="//'test.jpg', 'l400xc200'" target="_blank">Link to image</a>`
+- `<img src="{rlink //'test.jpg', 'l400xc200'}">`
+- `<a href="{rlink //'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`
