@@ -26,7 +26,12 @@ final class ResizerExtension extends CompilerExtension
 
 	public function getConfigSchema(): Schema
 	{
-		return Expect::from(new ResizerConfig);
+		return Expect::from(new ResizerConfig, [
+			'library' => Expect::anyOf('Gd', 'Imagick', 'Gmagick')->default('Imagick'),
+			'qualityWebp' => Expect::int(75)->min(0)->max(100),
+			'qualityJpeg' => Expect::int(75)->min(0)->max(100),
+			'compressionPng' => Expect::int(9)->min(0)->max(9),
+		]);
 	}
 
 
