@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Imagine\Image\BoxInterface;
 use Imagine\Image\Point;
 use Nette\InvalidArgumentException;
 use Nette\SmartObject;

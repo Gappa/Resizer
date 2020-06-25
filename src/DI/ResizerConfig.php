@@ -50,5 +50,4 @@ final class ResizerConfig
 	 * @var int
 	 */
 	public $compressionPng = 9;
-
 }

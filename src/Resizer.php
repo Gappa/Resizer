@@ -63,8 +63,7 @@ final class Resizer implements IResizer
 		string $path,
 		?string $params,
 		?string $format = null
-	): ?string
-	{
+	): ?string {
 		$params = $this->normalizeParams($params);
 		$sourceImagePath = $this->getSourceImagePath($path);
 
@@ -152,14 +151,13 @@ final class Resizer implements IResizer
 	private function processImage(
 		string $imagePathFull,
 		array $geometry
-	): ImageInterface
-	{
+	): ImageInterface {
 		$image = $this->imagine->open($imagePathFull);
 		$imageCurSize = $image->getSize();
 		$imageOutputSize = Geometry::calculateNewSize(
 			[
 				'width' => $imageCurSize->getWidth(),
-				'height' => $imageCurSize->getHeight()
+				'height' => $imageCurSize->getHeight(),
 			],
 			$geometry
 		);
@@ -180,6 +178,4 @@ final class Resizer implements IResizer
 	{
 		return is_file($path) and (bool) filesize($path);
 	}
-
-
 }
