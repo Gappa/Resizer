@@ -31,12 +31,6 @@ final class ResizerConfig
 	public $tempDir;
 
 	/** @var string */
-	public $storage = '/storage/';
-
-	/** @var string */
-	public $assets = '/assets/';
-
-	/** @var string */
 	public $cache = '/resizer/';
 
 	/**

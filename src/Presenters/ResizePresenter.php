@@ -49,19 +49,16 @@ final class ResizePresenter extends Presenter
 	public function actionDefault(
 		string $file,
 		?string $params = null,
-		bool $useAssets = false,
 		?string $format = null
 	): void {
 		try {
-			$image = $this->resizer->process($file, $params, $useAssets, $format);
+			$image = $this->resizer->process($file, $params, $format);
 		} catch (Exception $e) {
 			$this->error($e->getMessage());
 		}
 
 		$context = new Context($this->request, $this->response);
-		$etag = $this->getEtag(
-			$this->resizer->getSourceImagePath($file, $useAssets),
-			$image);
+		$etag = $this->getEtag($this->resizer->getSourceImagePath($file), $image);
 
 		if (!$context->isModified(null, $etag)) {
 			$this->response->setCode(Response::S304_NOT_MODIFIED);

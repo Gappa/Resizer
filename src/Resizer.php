@@ -32,12 +32,6 @@ final class Resizer implements IResizer
 	private $config;
 
 	/** @var string */
-	private $storageDir;
-
-	/** @var string */
-	private $assetsDir;
-
-	/** @var string */
 	private $cacheDir;
 
 	/** @var AbstractImagine */
@@ -50,9 +44,6 @@ final class Resizer implements IResizer
 	public function __construct(ResizerConfig $config)
 	{
 		$this->config = $config;
-		$this->storageDir = $config->storage;
-		$this->assetsDir = $config->assets;
-
 		$this->cacheDir = $config->tempDir . $config->cache;
 		FileSystem::createDir($this->cacheDir);
 
@@ -71,22 +62,16 @@ final class Resizer implements IResizer
 	public function process(
 		string $path,
 		?string $params,
-		bool $useAssets = false,
 		?string $format = null
 	): ?string
 	{
-
 		$params = $this->normalizeParams($params);
-		$sourceImagePath = $this->getSourceImagePath($path, $useAssets);
+		$sourceImagePath = $this->getSourceImagePath($path);
 
 		$extension = pathinfo($path, PATHINFO_EXTENSION) ?? '.unknown';
 
 		$thumbnailFileName = $params . '.' . $this->getOutputFormat($extension, $format);
-		$thumbnailPath = $this->getThumbnailDir($sourceImagePath) . $thumbnailFileName;
-
-		if (!is_file($sourceImagePath)) {
-			throw new Exception('Source image not found or not readable.');
-		}
+		$thumbnailPath = $this->getThumbnailDir($path) . $thumbnailFileName;
 
 		$geometry = Geometry::parseGeometry($params);
 
@@ -114,17 +99,26 @@ final class Resizer implements IResizer
 
 	public function getThumbnailDir(string $path): string
 	{
-		$dir = $this->cacheDir . preg_replace('#^' . $this->config->wwwDir . '\/#', '', ($path)) . DIRECTORY_SEPARATOR;
-
+		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
 		FileSystem::createDir($dir);
-
 		return $dir;
 	}
 
 
-	public function getSourceImagePath(string $path, bool $useAssets): string
+	public function getSourceImagePath(string $path): string
 	{
-		return ($useAssets ? $this->assetsDir : $this->storageDir) . $path;
+		$basePath = (string) realpath($this->config->wwwDir);
+		$fullPath = (string) realpath($this->config->wwwDir . DIRECTORY_SEPARATOR . $path);
+
+		if (!is_file($fullPath)) {
+			throw new Exception('Source image not found or not readable.');
+		}
+
+		if (strpos($fullPath, $basePath) !== 0) {
+			throw new Exception('Attempt to access files outside permitted path or an invalid path');
+		}
+
+		return $fullPath;
 	}
 
 
