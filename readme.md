@@ -2,21 +2,21 @@
 
 1. Composer: `composer require nelson/resizer`
 2. Register:
-	``` yaml
+	``` neon
 	extensions:
 		resizer: Nelson\Resizer\DI\ResizerExtension
 	```
 3. Config:
 
 	This is the bare minimum required:
-	``` yaml
+	``` neon
 	resizer:
 		wwwDir: %wwwDir%
 		tempDir: %tempDir%
 	```
 	
 	Other options with their defaults:
-	``` yaml
+	``` neon
 	resizer:
 		library: 'Imagick' # Imagick|Gmagick|Gd
 		absoluteUrls: false
