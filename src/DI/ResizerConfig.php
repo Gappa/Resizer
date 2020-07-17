@@ -9,9 +9,6 @@ final class ResizerConfig
 	/** @var string */
 	public $library;
 
-	/** @var string */
-	public $cacheNS = 'resizer';
-
 	/** @var bool */
 	public $absoluteUrls = false;
 
