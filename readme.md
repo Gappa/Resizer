@@ -2,28 +2,30 @@
 
 1. Composer: `composer require nelson/resizer`
 2. Register:
-	```
+	``` yaml
 	extensions:
 		resizer: Nelson\Resizer\DI\ResizerExtension
 	```
 3. Config:
 
-	These are the default values. 
-	Empty values are required.
-	```
+	This is the bare minimum required:
+	``` yaml
 	resizer:
-   	wwwDir: %wwwDir%
+		wwwDir: %wwwDir%
 		tempDir: %tempDir%
-   	storage: '/storage/' # inside %wwwDir%
-   	assets: '/assets/' # inside %wwwDir%
-		cache: '/resizer/' # inside %tempDir%
-   	library: 'Imagick' # imagine supports Gd|Imagick|Gmagick
-   	absoluteUrls: false
-   	interlace: true
-   	qualityJpeg: 75
-   	qualityWebp: 75
-   	compressionPng: 9
 	```
+	
+	Other options with their defaults:
+	``` yaml
+	resizer:
+		library: 'Imagick' # Imagick|Gmagick|Gd
+		absoluteUrls: false
+		interlace: true # for progressive JPEGs
+		cache: '/resizer/'
+		qualityWebp: 70 # 0 - 100
+		qualityJpeg: 70 # 0 - 100
+		compressionPng: 9 # 0 - 9
+	```	
 
 # Usage
 
@@ -60,7 +62,7 @@ Formats:
 
 Insert the src manually:
 
-- `<img src="{rlink 'test.jpg', '200x100'}">``
+- `<img src="{rlink 'test.jpg', '200x100'}">`
 
 Links can also be absolute, the usage is just like everywhere in Nette - `//`.
 
