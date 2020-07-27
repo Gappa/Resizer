@@ -32,4 +32,7 @@ final class ResizerConfig
 
 	/** @var int */
 	public $compressionPng;
+
+	/** @var bool */
+	public $upgradeJpg2Webp = true;
 }

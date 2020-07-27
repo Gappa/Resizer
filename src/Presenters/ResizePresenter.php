@@ -52,7 +52,11 @@ final class ResizePresenter extends Presenter
 		?string $format = null
 	): void {
 		try {
-			$image = $this->resizer->process($file, $params, $format);
+			$image = $this->resizer->process(
+				$file,
+				$params,
+				$this->getOutputFormat($file, $format)
+			);
 		} catch (Exception $e) {
 			$this->error($e->getMessage());
 		}
@@ -94,5 +98,39 @@ final class ResizePresenter extends Presenter
 	private function getEtag(string $srcFile, string $dstFile): string
 	{
 		return filemtime($srcFile) . '-' . md5($dstFile);
+	}
+
+
+	private function getOutputFormat(string $file, ?string $format = null): ?string
+	{
+		if (
+			empty($format) &&
+			$this->resizer->canUpgradeJpg2Webp() &&
+			$this->browserSupportsWebp() &&
+			$this->isFormatJpg($this->getImageFormat($file))
+		) {
+			return 'webp';
+		} else {
+			return $format;
+		}
+	}
+
+
+	private function browserSupportsWebp(): bool
+	{
+		$accept = (string) $this->request->getHeader('accept');
+		return is_int(strpos($accept, 'image/webp'));
+	}
+
+
+	private function getImageFormat(string $path): string
+	{
+		return pathinfo($path, PATHINFO_EXTENSION);
+	}
+
+
+	private function isFormatJpg(string $format): bool
+	{
+		return in_array(strtolower($format), ['jpeg', 'jpg']);
 	}
 }

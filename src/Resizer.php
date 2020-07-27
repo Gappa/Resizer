@@ -96,17 +96,8 @@ final class Resizer implements IResizer
 	}
 
 
-	public function getThumbnailDir(string $path): string
-	{
-		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
-		FileSystem::createDir($dir);
-		return $dir;
-	}
-
-
 	public function getSourceImagePath(string $path): string
 	{
-		// $basePath = (string) realpath($this->config->wwwDir);
 		$fullPath = (string) realpath($this->config->wwwDir . DIRECTORY_SEPARATOR . $path);
 
 		if (!is_file($fullPath)) {
@@ -119,6 +110,20 @@ final class Resizer implements IResizer
 		}
 
 		return $fullPath;
+	}
+
+
+	public function canUpgradeJpg2Webp(): bool
+	{
+		return $this->config->upgradeJpg2Webp;
+	}
+
+
+	private function getThumbnailDir(string $path): string
+	{
+		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
+		FileSystem::createDir($dir);
+		return $dir;
 	}
 
 
