@@ -106,15 +106,16 @@ final class Resizer implements IResizer
 
 	public function getSourceImagePath(string $path): string
 	{
-		$basePath = (string) realpath($this->config->wwwDir);
+		// $basePath = (string) realpath($this->config->wwwDir);
 		$fullPath = (string) realpath($this->config->wwwDir . DIRECTORY_SEPARATOR . $path);
 
 		if (!is_file($fullPath)) {
 			throw new Exception('Source image not found or not readable.');
 		}
 
-		if (strpos($fullPath, $basePath) !== 0) {
-			throw new Exception('Attempt to access files outside permitted path or an invalid path');
+		// wonky, but better than nothing
+		if (strpos($path, '../') !== false) {
+			throw new Exception('Attempt to access files outside permitted path.');
 		}
 
 		return $fullPath;
