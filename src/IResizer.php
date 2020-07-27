@@ -10,4 +10,6 @@ interface IResizer
 	public function getSourceImagePath(string $path): string;
 
 	public function canUpgradeJpg2Webp(): bool;
+
+	public function isWebpSupportedByServer(): bool;
 }

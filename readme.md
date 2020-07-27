@@ -25,7 +25,7 @@
 		qualityWebp: 70 # 0 - 100
 		qualityJpeg: 70 # 0 - 100
 		compressionPng: 9 # 0 - 9
-		upgradeJpg2Webp: true # Automatically convert JPEGs to WEBP when the format is supported by the browser.
+		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 	```
 
 # Usage

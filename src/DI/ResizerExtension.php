@@ -42,7 +42,8 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class)
-			->setArgument('config', $config);
+			->setArgument('config', $config)
+			->setArgument('isWebpSupportedByServer', $this->isWebpSupported($config));
 	}
 
 
@@ -76,5 +77,27 @@ final class ResizerExtension extends CompilerExtension
 	public static function getResizerLink(?bool $absolute = true): string
 	{
 		return ($absolute ? ':' : '') . self::PRESENTER_MAPPING . ':' . self::PRESENTER . ':';
+	}
+
+
+	private function isWebpSupported(ResizerConfig $config): bool
+	{
+		$support = false;
+
+		switch ($config->library) {
+			case 'Gd':
+				$support = function_exists('gd_info') && !empty(gd_info()['WebP Support']);
+				break;
+
+			case 'Imagick':
+				$support = extension_loaded('imagick') && in_array('WEBP', \Imagick::queryformats());
+				break;
+
+			case 'Gmagick':
+				$support = extension_loaded('gmagick') && in_array('WEBP', (new \Gmagick)->queryformats());
+				break;
+		}
+
+		return $support;
 	}
 }

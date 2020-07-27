@@ -40,10 +40,14 @@ final class Resizer implements IResizer
 	/** @var array */
 	private $options = [];
 
+	/** @var bool */
+	private $isWebpSupportedByServer;
 
-	public function __construct(ResizerConfig $config)
+
+	public function __construct(ResizerConfig $config, bool $isWebpSupportedByServer)
 	{
 		$this->config = $config;
+		$this->isWebpSupportedByServer = $isWebpSupportedByServer;
 		$this->cacheDir = $config->tempDir . $config->cache;
 		FileSystem::createDir($this->cacheDir);
 
@@ -54,7 +58,6 @@ final class Resizer implements IResizer
 		];
 
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
-
 		$this->imagine = new $library;
 	}
 
@@ -116,6 +119,12 @@ final class Resizer implements IResizer
 	public function canUpgradeJpg2Webp(): bool
 	{
 		return $this->config->upgradeJpg2Webp;
+	}
+
+
+	public function isWebpSupportedByServer(): bool
+	{
+		return $this->isWebpSupportedByServer;
 	}
 
 

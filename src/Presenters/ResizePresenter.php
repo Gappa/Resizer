@@ -106,6 +106,7 @@ final class ResizePresenter extends Presenter
 		if (
 			empty($format) &&
 			$this->resizer->canUpgradeJpg2Webp() &&
+			$this->resizer->isWebpSupportedByServer() &&
 			$this->browserSupportsWebp() &&
 			$this->isFormatJpg($this->getImageFormat($file))
 		) {
