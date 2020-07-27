@@ -38,6 +38,7 @@ final class ResizerExtension extends CompilerExtension
 	public function loadConfiguration(): void
 	{
 		$builder = $this->getContainerBuilder();
+		/** @var ResizerConfig $config */
 		$config = $this->getConfig();
 
 		$builder->addDefinition($this->prefix('default'))
