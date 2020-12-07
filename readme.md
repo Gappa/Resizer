@@ -34,7 +34,6 @@ Order of parameters:
 
 1. Image file. `string`
 2. Dimensions. `string`
-3. From assets? `bool`
 4. Format. `string`
 
 ## Dimensions
