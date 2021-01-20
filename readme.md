@@ -56,7 +56,7 @@ Modificators:
 
 Formats:
 
-- The fourth parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to webps.
+- The format parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to webps.
 
 ## Types
 
