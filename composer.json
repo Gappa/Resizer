@@ -1,14 +1,15 @@
 {
 	"name": "nelson/resizer",
+	"description": "Resizer Extension for Nette Framework & Latte",
 	"require": {
-		"php": ">= 7.1",
+		"php": ">= 7.4",
 		"ext-fileinfo": "*",
-		"latte/latte": "^2.5",
-		"nette/application": "^3.0",
+		"latte/latte": "^2.10",
+		"nette/application": "^3.1",
 		"nette/di": "^3.0",
-		"nette/http": "^3.0",
+		"nette/http": "^3.1",
 		"nette/schema": "^1.0",
-		"nette/utils": "^3.0",
+		"nette/utils": "^3.2",
 		"imagine/imagine": "^1.2.3"
 	},
 	"require-dev": {
