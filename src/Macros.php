@@ -10,6 +10,7 @@ use Latte\MacroNode;
 use Latte\Macros\MacroSet;
 use Latte\PhpWriter;
 use Nelson\Resizer\DI\ResizerExtension;
+use Nette\Application\LinkGenerator;
 
 final class Macros extends MacroSet
 {
@@ -44,15 +45,30 @@ final class Macros extends MacroSet
 
 	public function macroResizer(MacroNode $node, PhpWriter $writer): string
 	{
-		$absolute = substr($node->args, 0, 2) === '//' ? '//' : '';
+		$absolute = substr($node->args, 0, 2) === '//' ? '"//" . ' : '';
 		$args = $absolute ? substr($node->args, 2) : $node->args;
-		return $writer->write('echo %escape(%modify($presenter->link("' . $absolute . ResizerExtension::getResizerLink() . '", Nelson\Resizer\Macros::prepareArguments([' . $args . ']))))');
+		return $writer->using($node, $this->getCompiler())
+			->write(
+				'echo %escape(%modify('
+				. '$this->global->uiControl'
+				. '->link('
+				. $absolute
+				. 'Nelson\Resizer\Macros::getLink($this->global->uiControl)' . ','
+				. self::prepareArgs($args)
+				. ')))'
+			);
 	}
 
 
-	public static function prepareArguments(array $arguments): array
+	public static function getLink(object $class): string
 	{
-		return $arguments;
+		return ResizerExtension::getResizerLink(!($class instanceof LinkGenerator));
+	}
+
+
+	public static function prepareArgs(string $args): string
+	{
+		return '[' . $args . ']';
 	}
 
 
