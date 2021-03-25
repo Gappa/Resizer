@@ -17,28 +17,6 @@ final class Macros extends MacroSet
 	public static function install(Compiler $parser): void
 	{
 		$me = new static($parser);
-
-		$me->addMacro(
-			'rsrc',
-			null,
-			null,
-			function (MacroNode $node, PhpWriter $writer) use ($me) {
-				self::checkIsImgTag($node->htmlNode);
-				self::checkAttrNotDuplicate($node->htmlNode, 'src');
-				return ' ?> src="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
-			}
-		);
-
-		$me->addMacro(
-			'rhref',
-			null,
-			null,
-			function (MacroNode $node, PhpWriter $writer) use ($me) {
-				self::checkAttrNotDuplicate($node->htmlNode, 'href');
-				return ' ?> href="<?php ' . $me->macroResizer($node, $writer) . ' ?>"<?php ';
-			}
-		);
-
 		$me->addMacro('rlink', [$me, 'macroResizer']);
 	}
 
@@ -70,22 +48,5 @@ final class Macros extends MacroSet
 	{
 		return '[' . $args . ']';
 	}
-
-
-	public static function checkIsImgTag(HtmlNode $node): void
-	{
-		$tagName = strtolower($node->name);
-
-		if ($tagName !== 'img') {
-			throw new Exception(sprintf('Macro n:rsrc can only be used in <img> tag, <%s> used', $tagName));
-		}
-	}
-
-
-	public static function checkAttrNotDuplicate(HtmlNode $node, string $attr): void
-	{
-		if (isset($node->attrs[$attr])) {
-			throw new Exception(sprintf('Attribute "%s" already defined with value "%s"', $attr, $node->attrs[$attr]));
-		}
-	}
+	
 }
