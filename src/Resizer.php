@@ -130,9 +130,8 @@ final class Resizer implements IResizer
 	{
 		if (!empty($format) && $this->isFormatSupported($format)) {
 			return $format;
-		} else {
-			return $extension;
 		}
+		return $extension;
 	}
 
 
@@ -145,7 +144,7 @@ final class Resizer implements IResizer
 	private function normalizeParams(?string $params): string
 	{
 		// skippable argument defaults "hack" & backwards compat
-		if ($params === null or $params === 'auto') {
+		if ($params === null || $params === 'auto') {
 			return 'x';
 		}
 
@@ -164,14 +163,14 @@ final class Resizer implements IResizer
 				'width' => $imageCurSize->getWidth(),
 				'height' => $imageCurSize->getHeight(),
 			],
-			$geometry
+			$geometry,
 		);
 
 		$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
 		if (Geometry::isCrop($geometry)) {
 			$image->crop(
 				Geometry::getCropPoint($geometry, $imageOutputSize),
-				new Box($geometry['width'], $geometry['height'])
+				new Box($geometry['width'], $geometry['height']),
 			);
 		}
 
@@ -181,6 +180,6 @@ final class Resizer implements IResizer
 
 	private function thumbnailExists(string $path): bool
 	{
-		return is_file($path) and (bool) filesize($path);
+		return is_file($path) && (bool) filesize($path);
 	}
 }

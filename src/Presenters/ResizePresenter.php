@@ -49,7 +49,7 @@ final class ResizePresenter extends Presenter
 			$image = $this->resizer->process(
 				$file,
 				$params,
-				$this->getOutputFormat($file, $format)
+				$this->getOutputFormat($file, $format),
 			);
 		} catch (Exception $e) {
 			$this->error($e->getMessage());
@@ -66,7 +66,7 @@ final class ResizePresenter extends Presenter
 				$image,
 				pathinfo($file, PATHINFO_BASENAME),
 				$this->getMimeType($image),
-				false
+				false,
 			);
 
 			$now = new DateTime;
@@ -105,9 +105,8 @@ final class ResizePresenter extends Presenter
 			$this->isFormatJpg($this->getImageFormat($file))
 		) {
 			return 'webp';
-		} else {
-			return $format;
 		}
+		return $format;
 	}
 
 
@@ -126,6 +125,6 @@ final class ResizePresenter extends Presenter
 
 	private function isFormatJpg(string $format): bool
 	{
-		return in_array(strtolower($format), ['jpeg', 'jpg']);
+		return in_array(strtolower($format), ['jpeg', 'jpg'], true);
 	}
 }

@@ -62,25 +62,25 @@ class Geometry
 		}
 
 		// If params force a dimension, use them
-		if (!empty($geometry['suffix']) or (strpos($geometry['suffix'], '!') !== false)) {
+		if (!empty($geometry['suffix']) || (strpos($geometry['suffix'], '!') !== false)) {
 			return $desiredSize;
 		}
 
 		// This should not happen, has to be one or the other
-		if (static::isCrop($geometry) and static::isIfResize($geometry)) {
+		if (static::isCrop($geometry) && static::isIfResize($geometry)) {
 			throw new InvalidArgumentException('Crop and IfResize can not be used together.');
 		}
 
 		// -------------------------------
 
 		$srcRatio = $srcSize['width'] / $srcSize['height']; // real AR
-		if (!empty($desiredSize['width']) and !empty($desiredSize['height'])) {
+		if (!empty($desiredSize['width']) && !empty($desiredSize['height'])) {
 			$desiredRatio = $desiredSize['width'] / $desiredSize['height']; // possibly wanted AR
 		} else {
 			$desiredRatio = $srcRatio;
 		}
 
-		if ($desiredRatio <= $srcRatio and !empty($desiredSize['width'])) { // output width will respect the params
+		if ($desiredRatio <= $srcRatio && !empty($desiredSize['width'])) { // output width will respect the params
 			$outputRatio = $desiredSize['width'] / $srcSize['width'];
 		} elseif (!empty($desiredSize['height'])) { // output height will respect the params
 			$outputRatio = $desiredSize['height'] / $srcSize['height'];
@@ -104,10 +104,10 @@ class Geometry
 
 		// If the image is smaller than the desired size, hijack the process
 		if (static::isIfResize($geometry)
-			and (
-				$geometry['width'] > $srcSize['width'] and $geometry['height'] > $srcSize['height']
-				or $geometry['width'] > $srcSize['width'] and $geometry['height'] == 0
-				or $geometry['height'] > $srcSize['height'] and $geometry['width'] == 0
+			&& (
+				$geometry['width'] > $srcSize['width'] && $geometry['height'] > $srcSize['height']
+				|| $geometry['width'] > $srcSize['width'] && $geometry['height'] == 0
+				|| $geometry['height'] > $srcSize['height'] && $geometry['width'] == 0
 			)
 		) {
 			$dstSize['width'] = $srcSize['width'];
@@ -120,7 +120,7 @@ class Geometry
 
 	public static function isCrop(?array $geometry): bool
 	{
-		return !empty($geometry['horizontal']) and !empty($geometry['vertical']);
+		return !empty($geometry['horizontal']) && !empty($geometry['vertical']);
 	}
 
 

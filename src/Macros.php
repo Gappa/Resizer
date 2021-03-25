@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Exception;
 use Latte\Compiler;
-use Latte\HtmlNode;
 use Latte\MacroNode;
 use Latte\Macros\MacroSet;
 use Latte\PhpWriter;
@@ -33,7 +31,7 @@ final class Macros extends MacroSet
 					. $absolute
 					. 'Nelson\Resizer\Macros::getLink($this->global->uiControl)' . ','
 					. self::prepareArgs($args)
-				. ')))'
+				. ')))',
 			);
 	}
 
@@ -48,5 +46,4 @@ final class Macros extends MacroSet
 	{
 		return '[' . $args . ']';
 	}
-
 }
