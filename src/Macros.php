@@ -30,9 +30,9 @@ final class Macros extends MacroSet
 				'echo %escape(%modify('
 				. '$this->global->uiControl'
 				. '->link('
-				. $absolute
-				. 'Nelson\Resizer\Macros::getLink($this->global->uiControl)' . ','
-				. self::prepareArgs($args)
+					. $absolute
+					. 'Nelson\Resizer\Macros::getLink($this->global->uiControl)' . ','
+					. self::prepareArgs($args)
 				. ')))'
 			);
 	}
@@ -48,5 +48,5 @@ final class Macros extends MacroSet
 	{
 		return '[' . $args . ']';
 	}
-	
+
 }

@@ -15,18 +15,7 @@ class GeometryParserTest extends TestCase
 {
 	use SmartObject;
 
-
-	/** @var int */
-	// private $width = 1600;
-
-	/** @var int */
-	// private $height = 900;
-
-	// /** @var array  */
-	// private $srcSize = [];
-
-	/** @var array */
-	private $default = [
+	private array $default = [
 		'ifresize' => false,
 		'horizontal' => '',
 		'vertical' => '',
@@ -37,8 +26,7 @@ class GeometryParserTest extends TestCase
 		'verticalMargin' => '',
 	];
 
-	/** @var array */
-	private $expected = [];
+	private ?array $expected = [];
 
 
 	public function __construct()
