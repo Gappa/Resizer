@@ -3,24 +3,20 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\DI;
 
+use Gmagick;
+use Imagick;
 use Nelson\Resizer\Resizer;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\FactoryDefinition;
-use Nette\DI\ServiceDefinition;
+use Nette\DI\Definitions\ServiceDefinition;
 use Nette\Schema\Expect;
 use Nette\Schema\Schema;
 
 final class ResizerExtension extends CompilerExtension
 {
-
-	/** @var string */
 	public const PRESENTER_MAPPING = 'Resizer';
-
-	/** @var string */
 	public const PRESENTER = 'Resize';
-
-	/** @var string */
 	public const ACTION = 'default';
 
 
@@ -91,11 +87,11 @@ final class ResizerExtension extends CompilerExtension
 				break;
 
 			case 'Imagick':
-				$support = extension_loaded('imagick') && in_array('WEBP', \Imagick::queryformats());
+				$support = extension_loaded('imagick') && in_array('WEBP', Imagick::queryformats());
 				break;
 
 			case 'Gmagick':
-				$support = extension_loaded('gmagick') && in_array('WEBP', (new \Gmagick)->queryformats());
+				$support = extension_loaded('gmagick') && in_array('WEBP', (new Gmagick)->queryformats());
 				break;
 		}
 

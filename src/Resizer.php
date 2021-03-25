@@ -16,7 +16,6 @@ final class Resizer implements IResizer
 {
 	use SmartObject;
 
-	/** @var array */
 	private const SUPPORTED_FORMATS = [
 		'jpeg',
 		'jpg',
@@ -28,20 +27,11 @@ final class Resizer implements IResizer
 		'bmp',
 	];
 
-	/** @var ResizerConfig */
-	private $config;
-
-	/** @var string */
-	private $cacheDir;
-
-	/** @var AbstractImagine */
-	private $imagine;
-
-	/** @var array */
-	private $options = [];
-
-	/** @var bool */
-	private $isWebpSupportedByServer;
+	private ResizerConfig $config;
+	private AbstractImagine $imagine;
+	private string $cacheDir;
+	private array $options = [];
+	private bool $isWebpSupportedByServer;
 
 
 	public function __construct(ResizerConfig $config, bool $isWebpSupportedByServer)

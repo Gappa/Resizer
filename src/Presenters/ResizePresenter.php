@@ -16,15 +16,9 @@ use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter
 {
-
-	/** @var IResizer */
-	private $resizer;
-
-	/** @var IRequest */
-	private $request;
-
-	/** @var IResponse */
-	private $response;
+	private IResizer $resizer;
+	private IRequest $request;
+	private IResponse $response;
 
 
 	public function __construct(IResizer $resizer)

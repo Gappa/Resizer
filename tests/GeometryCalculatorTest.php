@@ -15,15 +15,9 @@ class GeometryCalculatorTest extends TestCase
 {
 	use SmartObject;
 
-
-	/** @var int */
-	private $width = 1600;
-
-	/** @var int */
-	private $height = 900;
-
-	/** @var array  */
-	private $srcSize = [];
+	private int $width = 1600;
+	private int $height = 900;
+	private array $srcSize = [];
 
 
 	public function __construct()
@@ -36,7 +30,7 @@ class GeometryCalculatorTest extends TestCase
 
 
 	// runs for every test
-	public function setUp()
+	public function setUp(): void
 	{
 		// $this->expected = $this->default;
 	}
