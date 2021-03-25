@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Test;
 
+use Nelson\Resizer\Geometry;
 use Nette\SmartObject;
 use Tester\Assert;
 use Tester\TestCase;
-use Nelson\Resizer\Geometry;
 
 // $container = require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/bootstrap.php';
@@ -40,7 +40,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(1600, 900),
-			$this->actual('x')
+			$this->actual('x'),
 		);
 	}
 
@@ -49,7 +49,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(100.0, 56.0),
-			$this->actual('100x')
+			$this->actual('100x'),
 		);
 	}
 
@@ -58,7 +58,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(178.0, 100.0),
-			$this->actual('x100')
+			$this->actual('x100'),
 		);
 	}
 
@@ -67,7 +67,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(200.0, 113.0),
-			$this->actual('200x200')
+			$this->actual('200x200'),
 		);
 	}
 
@@ -76,7 +76,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(250, 150),
-			$this->actual('c250xc150')
+			$this->actual('c250xc150'),
 		);
 	}
 
@@ -85,7 +85,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(250, 150),
-			$this->actual('l250xt150')
+			$this->actual('l250xt150'),
 		);
 	}
 
@@ -94,17 +94,16 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(250, 150),
-			$this->actual('r250xb150')
+			$this->actual('r250xb150'),
 		);
 	}
-
 
 
 	public function testForce(): void
 	{
 		Assert::same(
 			$this->exp(650, 350),
-			$this->actual('650x350!')
+			$this->actual('650x350!'),
 		);
 	}
 
@@ -113,7 +112,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(1600, 900),
-			$this->actual('ifresize-2500x2500')
+			$this->actual('ifresize-2500x2500'),
 		);
 	}
 
@@ -122,7 +121,7 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(1200.0, 675.0),
-			$this->actual('ifresize-1200x800')
+			$this->actual('ifresize-1200x800'),
 		);
 	}
 
@@ -132,11 +131,9 @@ class GeometryCalculatorTest extends TestCase
 	{
 		Assert::same(
 			$this->exp(2500, 1500),
-			$this->actual('ifresize-c2500xc1500')
+			$this->actual('ifresize-c2500xc1500'),
 		);
 	}
-
-
 
 
 	// Helpers
@@ -149,9 +146,8 @@ class GeometryCalculatorTest extends TestCase
 				'width' => $parsedGeometry['width'],
 				'height' => $parsedGeometry['height'],
 			];
-		} else {
-			return Geometry::calculateNewSize($this->srcSize, $parsedGeometry);
 		}
+		return Geometry::calculateNewSize($this->srcSize, $parsedGeometry);
 	}
 
 
@@ -169,5 +165,5 @@ class GeometryCalculatorTest extends TestCase
 	}
 }
 
-$test = new GeometryCalculatorTest();
+$test = new GeometryCalculatorTest;
 $test->run();

@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Test;
 
+use Nelson\Resizer\Geometry;
 use Nette\SmartObject;
 use Tester\Assert;
 use Tester\TestCase;
-use Nelson\Resizer\Geometry;
 
 // $container = require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/bootstrap.php';
@@ -38,7 +38,7 @@ class GeometryParserTest extends TestCase
 
 
 	// runs for every test
-	public function setUp()
+	public function setUp(): void
 	{
 		$this->expected = $this->default;
 	}
@@ -160,8 +160,7 @@ class GeometryParserTest extends TestCase
 		$actual = Geometry::parseGeometry(null);
 		Assert::same($this->expected, $actual);
 	}
-
 }
 
-$test = new GeometryParserTest();
+$test = new GeometryParserTest;
 $test->run();
