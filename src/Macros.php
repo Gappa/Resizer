@@ -25,12 +25,13 @@ final class Macros extends MacroSet
 		$args = $absolute ? substr($node->args, 2) : $node->args;
 		return $writer->using($node, $this->getCompiler())
 			->write(
-				'echo %escape(%modify('
-				. '$this->global->uiControl'
+				'$lg = $presenter ?? $this->global->uiControl;'
+				. 'echo %escape(%modify('
+				. '$lg'
 				. '->link('
-					. $absolute
-					. 'Nelson\Resizer\Macros::getLink($this->global->uiControl)' . ','
-					. self::prepareArgs($args)
+				. $absolute
+				. 'Nelson\Resizer\Macros::getLink($lg),'
+				. self::prepareArgs($args)
 				. ')))',
 			);
 	}
