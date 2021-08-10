@@ -15,4 +15,5 @@ final class ResizerConfig
 	public int $qualityJpeg;
 	public int $compressionPng;
 	public bool $upgradeJpg2Webp = true;
+	public bool $strip = true;
 }

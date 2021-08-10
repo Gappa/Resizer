@@ -74,8 +74,10 @@ final class Resizer implements IResizer
 				throw new Exception('Unable to open image - wrong permissions, empty or corrupted.');
 			}
 
-			// remove all comments & metadata
-			$thumbnail->strip();
+			if ($this->config->strip) {
+				// remove all comments & metadata
+				$thumbnail->strip();
+			}
 
 			// use progressive/interlace mode?
 			if ($this->config->interlace) {
