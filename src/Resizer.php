@@ -16,6 +16,7 @@ final class Resizer implements IResizer
 {
 	use SmartObject;
 
+	/** @var string[] */
 	private const SUPPORTED_FORMATS = [
 		'jpeg',
 		'jpg',
@@ -27,10 +28,16 @@ final class Resizer implements IResizer
 		'bmp',
 	];
 
+	/** @var array{
+	 * 	webp_quality: int<0, 100>,
+	 * 	jpeg_quality: int<0, 100>,
+	 * 	png_compression_level: int<0, 9>
+	 * }
+	 */
+	private array $options;
 	private ResizerConfig $config;
 	private AbstractImagine $imagine;
 	private string $cacheDir;
-	private array $options = [];
 	private bool $isWebpSupportedByServer;
 
 
@@ -47,6 +54,7 @@ final class Resizer implements IResizer
 			'png_compression_level' => $config->compressionPng,
 		];
 
+		/** @var AbstractImagine $library */
 		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
 		$this->imagine = new $library;
 	}
@@ -60,12 +68,13 @@ final class Resizer implements IResizer
 		$params = $this->normalizeParams($params);
 		$sourceImagePath = $this->getSourceImagePath($path);
 
-		$extension = pathinfo($path, PATHINFO_EXTENSION) ?? '.unknown';
+		$extension = pathinfo($path, PATHINFO_EXTENSION) ?: '.unknown';
 
 		$thumbnailFileName = $params . '.' . $this->getOutputFormat($extension, $format);
 		$thumbnailPath = $this->getThumbnailDir($path) . $thumbnailFileName;
 
-		$geometry = Geometry::parseGeometry($params);
+		// $geometry = GeometryOld::parseGeometry($params);
+		$geometry = new Geometry($params);
 
 		if (!$this->thumbnailExists($thumbnailPath)) {
 			try {
@@ -156,23 +165,23 @@ final class Resizer implements IResizer
 
 	private function processImage(
 		string $imagePathFull,
-		array $geometry
+		Geometry $geometry
 	): ImageInterface {
 		$image = $this->imagine->open($imagePathFull);
 		$imageCurSize = $image->getSize();
-		$imageOutputSize = Geometry::calculateNewSize(
-			[
-				'width' => $imageCurSize->getWidth(),
-				'height' => $imageCurSize->getHeight(),
-			],
-			$geometry,
-		);
 
-		$image->resize(new Box($imageOutputSize['width'], $imageOutputSize['height']));
-		if (Geometry::isCrop($geometry)) {
+		$sourceDimensions = new Dimensions($imageCurSize->getWidth(), $imageCurSize->getHeight());
+
+		$imageOutputSize = $geometry->calculateNewSize($sourceDimensions);
+
+		$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
+		if ($geometry->getResizerParams()->isCrop()) {
 			$image->crop(
-				Geometry::getCropPoint($geometry, $imageOutputSize),
-				new Box($geometry['width'], $geometry['height']),
+				$geometry->getCropPoint($imageOutputSize),
+				new Box(
+					$geometry->getResizerParams()->getWidth(),
+					$geometry->getResizerParams()->getHeight()
+				),
 			);
 		}
 

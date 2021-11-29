@@ -11,9 +11,15 @@ final class ResizerConfig
 	public string $wwwDir;
 	public string $tempDir;
 	public string $cache = '/resizer/';
-	public int $qualityWebp;
-	public int $qualityJpeg;
-	public int $compressionPng;
 	public bool $upgradeJpg2Webp = true;
 	public bool $strip = true;
+
+	/** @var int<0, 100> */
+	public int $qualityWebp;
+
+	/** @var int<0, 100> */
+	public int $qualityJpeg;
+
+	/** @var int<0, 9> */
+	public int $compressionPng;
 }

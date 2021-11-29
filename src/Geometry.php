@@ -4,165 +4,137 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Imagine\Image\Point;
+use Nelson\Resizer\Exceptions\IncompatibleResizerParamsException;
 use Nette\InvalidArgumentException;
 use Nette\SmartObject;
 
-class Geometry
+final class Geometry
 {
 	use SmartObject;
 
-	/**
-	 * @param array|string|null $geometry
-	 * @return array|null
-	 */
-	public static function parseGeometry($geometry): ?array
+
+	private ResizerParams $resizerParams;
+
+
+	public function __construct(string $rawParams)
 	{
-		if (is_array($geometry)) {
-			return $geometry;
-		} elseif ($geometry === null) {
-			return null;
-		} elseif (is_string($geometry) && strlen($geometry) === 0) {
-			return null;
-		}
-
-		$pattern = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)([!]?)([+-]?[0-9]*)([+-]?[0-9]*)#';
-
-		if (preg_match($pattern, $geometry, $matches)) {
-			return [
-				'ifresize' => (bool) $matches[1],
-				'horizontal' => $matches[2],
-				'vertical' => $matches[4],
-				'width' => (int) $matches[3],
-				'height' => (int) $matches[5],
-				'suffix' => $matches[6],
-				'horizontalMargin' => $matches[7],
-				'verticalMargin' => $matches[8],
-			];
-		}
-
-		return null;
+		$this->resizerParams = (new ResizerParamsParser($rawParams))->getParams();
 	}
 
 
-	public static function calculateNewSize(array $srcSize, ?array $geometry): array
+	public function getResizerParams(): ResizerParams
 	{
-		// Geometry is empty, use fallback
-		if (empty($geometry)) {
-			return $srcSize;
-		}
+		return $this->resizerParams;
+	}
 
-		$desiredSize = $dstSize = [
-			'width' => $geometry['width'],
-			'height' => $geometry['height'],
-		];
 
-		// No params are set, use the image's dimensions
-		if (!array_filter($geometry)) {
-			return $srcSize;
-		}
-
-		// If params force a dimension, use them
-		if (!empty($geometry['suffix']) || (strpos($geometry['suffix'], '!') !== false)) {
-			return $desiredSize;
-		}
+	public function calculateNewSize(Dimensions $input): Dimensions
+	{
+		// Shortcut
+		$rp = $this->resizerParams;
 
 		// This should not happen, has to be one or the other
-		if (static::isCrop($geometry) && static::isIfResize($geometry)) {
-			throw new InvalidArgumentException('Crop and IfResize can not be used together.');
+		if ($rp->isCrop() && $rp->isIfResize()) {
+			throw new IncompatibleResizerParamsException('Crop and IfResize can not be used together.');
+		}
+
+		// No dimensions set, use fallback
+		if ($rp->hasNoDimensions()) {
+			return $input;
+		}
+
+		// If params force a dimension, use them without any calculation
+		if ($rp->getForceDimensions() && $rp->hasBothDimensions()) {
+			return new Dimensions($rp->getWidth(), $rp->getHeight());
 		}
 
 		// -------------------------------
 
-		$srcRatio = $srcSize['width'] / $srcSize['height']; // real AR
-		if (!empty($desiredSize['width']) && !empty($desiredSize['height'])) {
-			$desiredRatio = $desiredSize['width'] / $desiredSize['height']; // possibly wanted AR
+		$inputRatio = $input->getRatio();
+
+		if ($rp->hasBothDimensions()) {
+			// possibly wanted AR
+			$desiredRatio = $rp->getWidth() / $rp->getHeight();
 		} else {
-			$desiredRatio = $srcRatio;
+			$desiredRatio = $inputRatio;
 		}
 
-		if ($desiredRatio <= $srcRatio && !empty($desiredSize['width'])) { // output width will respect the params
-			$outputRatio = $desiredSize['width'] / $srcSize['width'];
-		} elseif (!empty($desiredSize['height'])) { // output height will respect the params
-			$outputRatio = $desiredSize['height'] / $srcSize['height'];
+		// output width will respect the params
+		if ($desiredRatio <= $inputRatio && $rp->hasWidth()) {
+			$outputRatio = $rp->getWidth() / $input->getWidth();
+		}
+		// output height will respect the params
+		elseif ($rp->hasHeight()) {
+			$outputRatio = $rp->getHeight() / $input->getHeight();
 		} else {
-			$outputRatio = $srcRatio;
+			$outputRatio = $inputRatio;
 		}
 
-		$dstSize['width'] = round($srcSize['width'] * $outputRatio);
-		$dstSize['height'] = round($srcSize['height'] * $outputRatio);
+		$output = new Dimensions(
+			(int) round($input->getWidth() * $outputRatio),
+			(int) round($input->getHeight() * $outputRatio),
+		);
 
 		// Need to scale up to make room for the crop again
-		if (static::isCrop($geometry)) {
-			if ($dstSize['width'] == $geometry['width']) {
-				$dstSize['width'] = round($dstSize['width'] * $geometry['height'] / $dstSize['height']);
-				$dstSize['height'] = $geometry['height'];
+		if ($rp->isCrop()) {
+			if ($output->getWidth() === $rp->getWidth()) {
+				$width = $output->getWidth() * $rp->getHeight() / $output->getHeight();
+				$height = $rp->getHeight();
 			} else {
-				$dstSize['height'] = round($dstSize['height'] * $geometry['width'] / $dstSize['width']);
-				$dstSize['width'] = $geometry['width'];
+				$width = $rp->getWidth();
+				$height = $output->getHeight() * $rp->getWidth() / $output->getWidth();
 			}
+
+			$output = new Dimensions(
+				(int) round($width),
+				(int) round($height),
+			);
 		}
 
 		// If the image is smaller than the desired size, hijack the process
-		if (static::isIfResize($geometry)
+		if ($rp->isIfresize()
 			&& (
-				$geometry['width'] > $srcSize['width'] && $geometry['height'] > $srcSize['height']
-				|| $geometry['width'] > $srcSize['width'] && $geometry['height'] == 0
-				|| $geometry['height'] > $srcSize['height'] && $geometry['width'] == 0
+				$rp->getWidth() > $input->getWidth() && $rp->getHeight() > $input->getHeight()
+				||
+				$rp->getWidth() > $input->getWidth() && !$rp->hasHeight()
+				||
+				$rp->getHeight() > $input->getHeight() && !$rp->hasWidth()
 			)
 		) {
-			$dstSize['width'] = $srcSize['width'];
-			$dstSize['height'] = $srcSize['height'];
+			$output = new Dimensions($input->getWidth(), $input->getHeight());
 		}
 
-		return $dstSize;
+		return $output;
 	}
 
 
-	public static function isCrop(?array $geometry): bool
+	public function getCropPoint(Dimensions $source): Point
 	{
-		return !empty($geometry['horizontal']) && !empty($geometry['vertical']);
-	}
-
-
-	public static function isIfResize(array $geometry): bool
-	{
-		return !empty($geometry['ifresize']);
-	}
-
-
-	public static function getCropPoint(?array $geometry, array $imageOutputSize): Point
-	{
-		switch ($geometry['horizontal']) {
-			case 'l':
-				$x = 0;
-				break;
-
+		switch ($this->resizerParams->getHorizontal()) {
 			case 'c':
-				$x = ($imageOutputSize['width'] - $geometry['width']) / 2;
+				$x = ($source->getWidth() - $this->resizerParams->getWidth()) / 2;
 				break;
 
 			case 'r':
-				$x = $imageOutputSize['width'] - $geometry['width'];
+				$x = $source->getWidth() - $this->resizerParams->getWidth();
 				break;
 
+			case 'l':
 			default:
 				$x = 0;
 				break;
 		}
 
-		switch ($geometry['vertical']) {
-			case 't':
-				$y = 0;
-				break;
-
+		switch ($this->resizerParams->getVertical()) {
 			case 'c':
-				$y = ($imageOutputSize['height'] - $geometry['height']) / 2;
+				$y = ($source->getHeight() - $this->resizerParams->getHeight()) / 2;
 				break;
 
 			case 'b':
-				$y = $imageOutputSize['height'] - $geometry['height'];
+				$y = $source->getHeight() - $this->resizerParams->getHeight();
 				break;
 
+			case 't':
 			default:
 				$y = 0;
 				break;
@@ -170,4 +142,5 @@ class Geometry
 
 		return new Point((int) $x, (int) $y);
 	}
+
 }
