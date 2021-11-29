@@ -9,6 +9,8 @@ use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
 use Nelson\Resizer\DI\ResizerConfig;
+use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
+use Nelson\Resizer\Exceptions\SecurityException;
 use Nette\SmartObject;
 use Nette\Utils\FileSystem;
 
@@ -73,14 +75,13 @@ final class Resizer implements IResizer
 		$thumbnailFileName = $params . '.' . $this->getOutputFormat($extension, $format);
 		$thumbnailPath = $this->getThumbnailDir($path) . $thumbnailFileName;
 
-		// $geometry = GeometryOld::parseGeometry($params);
 		$geometry = new Geometry($params);
 
 		if (!$this->thumbnailExists($thumbnailPath)) {
 			try {
 				$thumbnail = $this->processImage($sourceImagePath, $geometry);
 			} catch (RuntimeException $e) {
-				throw new Exception('Unable to open image - wrong permissions, empty or corrupted.');
+				throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
 			}
 
 			if ($this->config->strip) {
@@ -104,13 +105,13 @@ final class Resizer implements IResizer
 	{
 		$fullPath = (string) realpath($this->config->wwwDir . DIRECTORY_SEPARATOR . $path);
 
-		if (!is_file($fullPath)) {
-			throw new Exception('Source image not found or not readable.');
-		}
-
 		// wonky, but better than nothing
 		if (strpos($path, '../') !== false) {
-			throw new Exception('Attempt to access files outside permitted path.');
+			throw new SecurityException('Attempt to access files outside permitted path.');
+		}
+
+		if (!is_file($fullPath)) {
+			throw new ImageNotFoundOrReadableException('Source image not found or not readable.');
 		}
 
 		return $fullPath;
