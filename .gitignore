@@ -3,3 +3,4 @@ composer.lock
 .idea
 *.bak
 temp/
+tests/output/
