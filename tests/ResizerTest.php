@@ -23,6 +23,7 @@ class ResizerTest extends TestCase
 	private Resizer $resizer;
 	private string $image;
 	private ResizerConfig $config;
+	private ?string $thumbnail = null;
 
 
 	public function __construct()
@@ -75,9 +76,24 @@ class ResizerTest extends TestCase
 
 	public function testProcess(): void
 	{
+		$thumbnail = FileSystem::normalizePath($this->resizer->process($this->image, 'c200xc200'));
+
 		Assert::same(
-			FileSystem::normalizePath(__DIR__ . '/../temp/resizer/test.png/200x.png'),
-			FileSystem::normalizePath($this->resizer->process($this->image, '200x')),
+			FileSystem::normalizePath(__DIR__ . '/../temp/resizer/test.png/c200xc200.png'),
+			$thumbnail,
+		);
+	}
+
+
+	public function testGeneratedImage(): void
+	{
+		$thumbnail = FileSystem::normalizePath($this->resizer->process($this->image, 'c200xc200'));
+
+		$size = getimagesize($thumbnail);
+
+		Assert::same(
+			[200, 200],
+			[$size[0], $size[1]],
 		);
 	}
 
