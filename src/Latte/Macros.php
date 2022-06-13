@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Nelson\Resizer;
+namespace Nelson\Resizer\Latte;
 
 use Latte\Compiler;
 use Latte\MacroNode;
@@ -30,7 +30,7 @@ final class Macros extends MacroSet
 				. '$lg'
 				. '->link('
 				. $absolute
-				. 'Nelson\Resizer\Macros::getLink($lg),'
+				. 'Nelson\Resizer\Latte\Macros::getLink($lg),'
 				. self::prepareArgs($args)
 				. ')))',
 			);

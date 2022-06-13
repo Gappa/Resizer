@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\DI;
 
+use Exception;
 use Gmagick;
 use Imagick;
+use Latte\Engine;
+use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
 use Nelson\Resizer\Resizer;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
+use Nette\DI\Definitions\Definition;
 use Nette\DI\Definitions\FactoryDefinition;
 use Nette\DI\Definitions\ServiceDefinition;
 use Nette\Schema\Expect;
@@ -48,15 +52,15 @@ final class ResizerExtension extends CompilerExtension
 	{
 		$builder = $this->getContainerBuilder();
 
-		// Latte filter
-		$latteFactoryName = 'latte.latteFactory';
-		if ($builder->hasDefinition($latteFactoryName)) {
-			/** @var FactoryDefinition $latteFactory */
-			$latteFactory = $builder->getDefinition($latteFactoryName);
-			$latteFactory
-				->getResultDefinition()
-				->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']])
-				->addSetup('Nelson\Resizer\Macros::install(?->getCompiler())', ['@self']);
+		$latteFactoryDef = $this->getLatteFactoryDefinition();
+		$latteFactoryDef->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
+
+		if (version_compare(Engine::VERSION, '3', '<')) {
+			// Latte 2.x
+			$latteFactoryDef->addSetup('Nelson\Resizer\Latte\Macros::install(?->getCompiler())', ['@self']);
+		} else {
+			// Latte 3.x
+			$latteFactoryDef->addSetup('addExtension', [new LatteResizerExtension]);
 		}
 
 		// Presenter mappings
@@ -96,5 +100,25 @@ final class ResizerExtension extends CompilerExtension
 		}
 
 		return $support;
+	}
+
+
+	/**
+	 * @return ServiceDefinition
+	 * @throws Exception
+	 */
+	private function getLatteFactoryDefinition(): Definition
+	{
+		$builder = $this->getContainerBuilder();
+
+		$latteFactoryName = 'latte.latteFactory';
+
+		if (!$builder->hasDefinition($latteFactoryName)) {
+			throw new Exception(sprintf('Service %s not found.', $latteFactoryName));
+		}
+
+		/** @var FactoryDefinition $latteFactory */
+		$latteFactory = $builder->getDefinition($latteFactoryName);
+		return $latteFactory->getResultDefinition();
 	}
 }
