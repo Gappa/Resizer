@@ -16,15 +16,13 @@ use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter
 {
-	private IResizer $resizer;
 	private IRequest $request;
 	private IResponse $response;
 
 
-	public function __construct(IResizer $resizer)
+	public function __construct(private IResizer $resizer)
 	{
 		parent::__construct();
-		$this->resizer = $resizer;
 	}
 
 
@@ -59,7 +57,7 @@ final class ResizePresenter extends Presenter
 		$etag = $this->getEtag($this->resizer->getSourceImagePath($file), $image);
 
 		if (!$context->isModified(null, $etag)) {
-			$this->response->setCode(Response::S304_NOT_MODIFIED);
+			$this->response->setCode(IResponse::S304_NOT_MODIFIED);
 			$this->sendResponse(new TextResponse(''));
 		} else {
 			$fileResponse = new FileResponse(

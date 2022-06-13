@@ -5,35 +5,17 @@ namespace Nelson\Resizer;
 class ResizerParams
 {
 
-	private bool $ifresize;
-	private ?string $horizontal;
-	private ?string $vertical;
-	private bool $forceDimensions;
-	private ?string $horizontalMargin;
-	private ?string $verticalMargin;
-	private ?int $width;
-	private ?int $height;
-
-
 	public function __construct(
-		bool $ifresize,
-		?string $horizontal,
-		?string $vertical,
-		bool $forceDimensions,
-		?string $horizontalMargin,
-		?string $verticalMargin,
-		?int $width,
-		?int $height
+		private bool $ifresize,
+		private ?string $horizontal,
+		private ?string $vertical,
+		private bool $forceDimensions,
+		private ?string $horizontalMargin,
+		private ?string $verticalMargin,
+		private ?int $width,
+		private ?int $height
 	)
 	{
-		$this->ifresize = $ifresize;
-		$this->horizontal = $horizontal;
-		$this->vertical = $vertical;
-		$this->forceDimensions = $forceDimensions;
-		$this->horizontalMargin = $horizontalMargin;
-		$this->verticalMargin = $verticalMargin;
-		$this->width = $width;
-		$this->height = $height;
 	}
 
 

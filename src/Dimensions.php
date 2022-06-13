@@ -5,17 +5,11 @@ namespace Nelson\Resizer;
 class Dimensions
 {
 
-	private int $width;
-	private int $height;
-
-
 	public function __construct(
-		int $width,
-		int $height
+		private int $width,
+		private int $height
 	)
 	{
-		$this->width = $width;
-		$this->height = $height;
 	}
 
 

@@ -87,7 +87,7 @@ final class ResizerExtension extends CompilerExtension
 				break;
 
 			case 'Imagick':
-				$support = extension_loaded('imagick') && in_array('WEBP', Imagick::queryformats(), true);
+				$support = extension_loaded('imagick') && in_array('WEBP', Imagick::queryFormats(), true);
 				break;
 
 			case 'Gmagick':

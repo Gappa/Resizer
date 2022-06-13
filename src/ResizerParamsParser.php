@@ -11,7 +11,7 @@ class ResizerParamsParser
 {
 	use SmartObject;
 
-	private const PATTERN = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)([!]?)([+-]?[0-9]*)([+-]?[0-9]*)#';
+	private const PATTERN = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)(!?)([+-]?[0-9]*)([+-]?[0-9]*)#';
 
 	private ResizerParams $params;
 
