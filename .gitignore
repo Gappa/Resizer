@@ -1,6 +1,12 @@
-vendor
-composer.lock
-.idea
+# Masks
 *.bak
+
+# Files
+composer.lock
+.phpunit.result.cache
+
+# Dirs
+vendor/
 temp/
-tests/output/
+.idea/
+

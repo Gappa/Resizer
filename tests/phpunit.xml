@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	bootstrap="bootstrap.php"
+	cacheResult="true"
+	cacheResultFile="temp/.phpunit.result.cache"
+	colors="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	verbose="true">
+</phpunit>

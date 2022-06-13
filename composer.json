@@ -2,7 +2,7 @@
 	"name": "nelson/resizer",
 	"description": "Resizer Extension for Nette Framework & Latte",
 	"require": {
-		"php": ">= 8.0",
+		"php": "^8.0",
 		"ext-fileinfo": "*",
 		"latte/latte": "^3.0",
 		"nette/application": "^3.1",
@@ -13,21 +13,24 @@
 		"imagine/imagine": "^1.2.3"
 	},
 	"require-dev": {
-		"nette/tester": "^2.0",
 		"phpstan/extension-installer": "^1.0",
 		"phpstan/phpstan": "^1.0.0",
 		"phpstan/phpstan-nette": "^1.0.0",
 		"roave/security-advisories": "dev-master",
-		"tracy/tracy": "^2.8"
+		"phpunit/phpunit": "^9.0.0",
+		"tracy/tracy": "^2.9"
 	},
 	"autoload": {
 		"psr-4": {
 			"Nelson\\Resizer\\": "src/"
 		}
 	},
+	"autoload-dev": {
+		"psr-4": { "Nelson\\Resizer\\Tests\\": "tests/" }
+	},
 	"scripts": {
 		"phpstan": "./phpstan/phpstan",
-		"tests": "./tests/tests"
+		"tests": "./vendor/bin/phpunit --configuration tests/phpunit.xml tests"
 	},
 	"config": {
 		"allow-plugins": {

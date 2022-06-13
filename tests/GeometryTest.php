@@ -1,36 +1,30 @@
 <?php
 declare(strict_types=1);
 
-namespace Test;
+namespace Nelson\Resizer\Tests;
 
 use Imagine\Image\Point;
 use Nelson\Resizer\Dimensions;
 use Nelson\Resizer\Exceptions\IncompatibleResizerParamsException;
 use Nelson\Resizer\Geometry;
-use Nette\SmartObject;
-use Tester\Assert;
-use Tester\TestCase;
+use PHPUnit\Framework\TestCase;
 
-// $container = require __DIR__ . '/bootstrap.php';
-require __DIR__ . '/bootstrap.php';
-
-/** @testCase */
 class GeometryTest extends TestCase
 {
-	use SmartObject;
 
-	private Dimensions $sourceDimensions;
+	private static Dimensions $sourceDimensions;
 
 
-	public function __construct()
+	public static function setUpBeforeClass(): void
 	{
-		$this->sourceDimensions = new Dimensions(1600, 900);
+		parent::setUpBeforeClass();
+		static::$sourceDimensions = new Dimensions(1600, 900);
 	}
 
 
 	public function testWidth(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(100, 56),
 			$this->actual('100x'),
 		);
@@ -39,7 +33,7 @@ class GeometryTest extends TestCase
 
 	public function testHeight(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(178, 100),
 			$this->actual('x100'),
 		);
@@ -48,7 +42,7 @@ class GeometryTest extends TestCase
 
 	public function testWidthHeight(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(200, 113),
 			$this->actual('200x200'),
 		);
@@ -57,7 +51,7 @@ class GeometryTest extends TestCase
 
 	public function testCrop1(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(266, 150),
 			$this->actual('c250xc150'),
 		);
@@ -66,7 +60,7 @@ class GeometryTest extends TestCase
 
 	public function testCrop2(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(266, 150),
 			$this->actual('l250xt150'),
 		);
@@ -75,7 +69,7 @@ class GeometryTest extends TestCase
 
 	public function testCrop3(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(266, 150),
 			$this->actual('r250xb150'),
 		);
@@ -84,7 +78,7 @@ class GeometryTest extends TestCase
 
 	public function testForceDimensions(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(650, 350),
 			$this->actual('650x350!'),
 		);
@@ -93,7 +87,7 @@ class GeometryTest extends TestCase
 
 	public function testIfresizeOver(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(1600, 900),
 			$this->actual('ifresize-2500x2500'),
 		);
@@ -102,7 +96,7 @@ class GeometryTest extends TestCase
 
 	public function testIfresizeUnder(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expected(1200, 675),
 			$this->actual('ifresize-1200x800'),
 		);
@@ -112,16 +106,15 @@ class GeometryTest extends TestCase
 	/** This should fail like a boss, but it does not because of wrong design */
 	public function testIfresizeCrop(): void
 	{
-		Assert::exception(
-			function() {$this->actual('ifresize-c2500xc1500');},
-			IncompatibleResizerParamsException::class,
-		);
+		$this->expectException(IncompatibleResizerParamsException::class);
+
+		$this->actual('ifresize-c2500xc1500');
 	}
 
 
 	public function testCropPointEqualCC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('c1600xc900'),
 		);
@@ -130,7 +123,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointEqualLT(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('l1600xt900'),
 		);
@@ -139,7 +132,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointEqualRB(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('r1600xb900'),
 		);
@@ -148,7 +141,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointHalfCC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('c800xc450'),
 		);
@@ -157,7 +150,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointHorizontalLC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('l800xc900'),
 		);
@@ -166,7 +159,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointHorizontalCC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(400, 0),
 			$this->actualPoint('c800xc900'),
 		);
@@ -175,7 +168,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointHorizontalRC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(800, 0),
 			$this->actualPoint('r800xc900'),
 		);
@@ -184,7 +177,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointVerticalCT(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 0),
 			$this->actualPoint('c1600xt450'),
 		);
@@ -193,7 +186,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointVerticalCC(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 225),
 			$this->actualPoint('c1600xc450'),
 		);
@@ -202,7 +195,7 @@ class GeometryTest extends TestCase
 
 	public function testCropPointVerticalCB(): void
 	{
-		Assert::equal(
+		$this->assertEquals(
 			$this->expectedPoint(0, 450),
 			$this->actualPoint('c1600xb450'),
 		);
@@ -214,14 +207,14 @@ class GeometryTest extends TestCase
 	private function actual(string $params): Dimensions
 	{
 		$geometry = new Geometry($params);
-		return $geometry->calculateNewSize($this->sourceDimensions);
+		return $geometry->calculateNewSize(self::$sourceDimensions);
 	}
 
 
 	private function actualPoint(string $params): Point
 	{
 		$geometry = new Geometry($params);
-		$source = $geometry->calculateNewSize($this->sourceDimensions);
+		$source = $geometry->calculateNewSize(self::$sourceDimensions);
 		return $geometry->getCropPoint($source);
 	}
 
@@ -236,8 +229,4 @@ class GeometryTest extends TestCase
 	{
 		return new Point($x, $y);
 	}
-
 }
-
-$test = new GeometryTest;
-$test->run();

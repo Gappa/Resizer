@@ -1,34 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace Test;
+namespace Nelson\Resizer\Tests;
 
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\ResizerParams;
 use Nelson\Resizer\ResizerParamsParser;
-use Nette\SmartObject;
-use Tester\Assert;
-use Tester\TestCase;
+use PHPUnit\Framework\TestCase;
 
-// $container = require __DIR__ . '/bootstrap.php';
-require __DIR__ . '/bootstrap.php';
-
-/** @testCase */
 class ResizerParamsParserTest extends TestCase
 {
-	use SmartObject;
-
-
-	public function __construct()
-	{
-	}
-
-
-	// runs for every test
-	// public function setUp(): void
-	// {
-	// }
-
 
 	public function testEmpty(): void
 	{
@@ -44,7 +25,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('x');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -62,7 +43,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('500x');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -80,7 +61,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('x500');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -98,7 +79,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('400x300');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -116,7 +97,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('500x500!');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -134,7 +115,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('ifresize-400x');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -152,7 +133,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('ifresize-x400');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -170,7 +151,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('ifresize-400x600');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -189,7 +170,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('c500x800');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -207,7 +188,7 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('500xc800');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
@@ -225,33 +206,29 @@ class ResizerParamsParserTest extends TestCase
 		);
 
 		$actual = $this->parse('c500xc800');
-		Assert::equal($expected, $actual);
+		$this->assertEquals($expected, $actual);
 	}
 
 
 	public function testEmptyString(): void
 	{
-		Assert::exception(
-			function() {$this->parse('');},
-			CouldNotParseResizerParamsException::class
-		);
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('');
 	}
 
 
 	public function testEmptyNull(): void
 	{
-		Assert::exception(
-			function() {$this->parse(null);},
-			CouldNotParseResizerParamsException::class
-		);
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse(null);
 	}
 
 
+	/**
+	 * @throws CouldNotParseResizerParamsException
+	 */
 	private function parse(?string $params): ResizerParams
 	{
 		return (new ResizerParamsParser($params))->getParams();
 	}
 }
-
-$test = new ResizerParamsParserTest;
-$test->run();
