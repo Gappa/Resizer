@@ -1,15 +1,14 @@
 <?php
+declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
 class Dimensions
 {
-
 	public function __construct(
 		private int $width,
 		private int $height
-	)
-	{
+	) {
 	}
 
 
@@ -29,5 +28,4 @@ class Dimensions
 	{
 		return $this->width / $this->height;
 	}
-
 }

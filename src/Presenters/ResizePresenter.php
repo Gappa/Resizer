@@ -11,7 +11,6 @@ use Nette\Application\UI\Presenter;
 use Nette\Http\Context;
 use Nette\Http\IRequest;
 use Nette\Http\IResponse;
-use Nette\Http\Response;
 use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter

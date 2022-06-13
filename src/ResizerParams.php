@@ -1,10 +1,10 @@
 <?php
+declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
 class ResizerParams
 {
-
 	public function __construct(
 		private bool $ifresize,
 		private ?string $horizontal,
@@ -14,8 +14,7 @@ class ResizerParams
 		private ?string $verticalMargin,
 		private ?int $width,
 		private ?int $height
-	)
-	{
+	) {
 	}
 
 
@@ -63,7 +62,7 @@ class ResizerParams
 
 	public function hasWidth(): bool
 	{
-		return null !== $this->width;
+		return $this->width !== null;
 	}
 
 
@@ -75,25 +74,25 @@ class ResizerParams
 
 	public function hasHeight(): bool
 	{
-		return null !== $this->height;
+		return $this->height !== null;
 	}
 
 
 	public function hasBothDimensions(): bool
 	{
-		return ($this->width !== null && $this->height !== null);
+		return $this->width !== null && $this->height !== null;
 	}
 
 
 	public function hasOneDimension(): bool
 	{
-		return ($this->width !== null || $this->height !== null);
+		return $this->width !== null || $this->height !== null;
 	}
 
 
 	public function hasNoDimensions(): bool
 	{
-		return ($this->width === null && $this->height === null);
+		return $this->width === null && $this->height === null;
 	}
 
 
@@ -105,7 +104,4 @@ class ResizerParams
 			($this->vertical !== null && strlen($this->vertical) === 1)
 		;
 	}
-
-
-
 }

@@ -12,7 +12,6 @@ use PHPUnit\Framework\TestCase;
 
 class ResizerTest extends TestCase
 {
-
 	private static Resizer $resizer;
 	private static string $image;
 	private static ResizerConfig $config;
@@ -23,7 +22,7 @@ class ResizerTest extends TestCase
 	{
 		parent::setUpBeforeClass();
 
-		static::$config = new ResizerConfig();
+		static::$config = new ResizerConfig;
 		static::$config->tempDir = __DIR__ . '/../temp';
 		static::$config->wwwDir = __DIR__ . '/../tests';
 		static::$config->qualityJpeg = 65;
@@ -88,5 +87,4 @@ class ResizerTest extends TestCase
 		parent::tearDownAfterClass();
 		FileSystem::delete(static::$config->tempDir . static::$config->cache);
 	}
-
 }

@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Exception;
 use Imagine\Exception\RuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
@@ -18,7 +17,6 @@ final class Resizer implements IResizer
 {
 	use SmartObject;
 
-	/** @var string[] */
 	private const SUPPORTED_FORMATS = [
 		'jpeg',
 		'jpg',

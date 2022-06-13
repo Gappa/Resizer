@@ -10,7 +10,6 @@ use PHPUnit\Framework\TestCase;
 
 class ResizerParamsParserTest extends TestCase
 {
-
 	public function testEmpty(): void
 	{
 		$expected = new ResizerParams(

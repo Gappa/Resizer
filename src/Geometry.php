@@ -5,13 +5,11 @@ namespace Nelson\Resizer;
 
 use Imagine\Image\Point;
 use Nelson\Resizer\Exceptions\IncompatibleResizerParamsException;
-use Nette\InvalidArgumentException;
 use Nette\SmartObject;
 
 final class Geometry
 {
 	use SmartObject;
-
 
 	private ResizerParams $resizerParams;
 
@@ -142,5 +140,4 @@ final class Geometry
 
 		return new Point((int) $x, (int) $y);
 	}
-
 }

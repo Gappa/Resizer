@@ -11,7 +11,6 @@ use PHPUnit\Framework\TestCase;
 
 class GeometryTest extends TestCase
 {
-
 	private static Dimensions $sourceDimensions;
 
 

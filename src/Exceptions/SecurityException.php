@@ -7,5 +7,4 @@ use Exception;
 
 final class SecurityException extends Exception
 {
-
 }

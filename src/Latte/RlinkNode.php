@@ -45,7 +45,8 @@ final class RlinkNode extends StatementNode
 
 	public function print(PrintContext $context): string
 	{
-		return $context->format(''
+		return $context->format(
+			''
 			. '$lg = $this->global->uiPresenter ?? $this->global->uiControl;'
 			. 'echo %modify('
 			. '$lg->link(Nelson\Resizer\Latte\RlinkNode::getLink($lg), %node)) %line;',
@@ -53,7 +54,6 @@ final class RlinkNode extends StatementNode
 			$this->args,
 			$this->position,
 		);
-
 	}
 
 

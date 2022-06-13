@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Exception;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nette\SmartObject;
 
@@ -72,6 +71,4 @@ class ResizerParamsParser
 
 		return null;
 	}
-
-
 }
