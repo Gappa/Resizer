@@ -13,7 +13,7 @@ use Nelson\Resizer\DI\ResizerExtension;
 use Nette\Application\LinkGenerator;
 
 
-class RlinkNode extends StatementNode
+final class RlinkNode extends StatementNode
 {
 	public ExpressionNode $destination;
 	public ArrayNode $args;
