@@ -2,7 +2,7 @@
 	"name": "nelson/resizer",
 	"description": "Resizer Extension for Nette Framework & Latte",
 	"require": {
-		"php": ">= 7.4",
+		"php": ">= 8.0",
 		"ext-fileinfo": "*",
 		"latte/latte": "^2.10",
 		"nette/application": "^3.1",
@@ -28,5 +28,10 @@
 	"scripts": {
 		"phpstan": "./phpstan/phpstan",
 		"tests": "./tests/tests"
+	},
+	"config": {
+		"allow-plugins": {
+			"phpstan/extension-installer": true
+		}
 	}
 }
