@@ -11,7 +11,7 @@ use Latte\Compiler\PrintContext;
 use Latte\Compiler\Tag;
 use Nelson\Resizer\DI\ResizerExtension;
 use Nette\Application\LinkGenerator;
-
+use Nette\Utils\Strings;
 
 final class RlinkNode extends StatementNode
 {
@@ -25,8 +25,9 @@ final class RlinkNode extends StatementNode
 	{
 		$tag->outputMode = $tag::OutputKeepIndentation;
 		$tag->expectArguments();
-		$node = new static;
 		$tag->parser->stream->tryConsume(',');
+
+		$node = new static;
 		$node->args = $tag->parser->parseArguments();
 		$node->modifier = $tag->parser->parseModifier();
 		$node->modifier->escape = true;
@@ -45,11 +46,13 @@ final class RlinkNode extends StatementNode
 
 	public function print(PrintContext $context): string
 	{
+		$abs = $this->mode === 'rlinkabs' ? '"//" . ' : '';
+
 		return $context->format(
 			''
 			. '$lg = $this->global->uiPresenter ?? $this->global->uiControl;'
 			. 'echo %modify('
-			. '$lg->link(Nelson\Resizer\Latte\RlinkNode::getLink($lg), %node)) %line;',
+			. '$lg->link(' . $abs . ' Nelson\Resizer\Latte\RlinkNode::getLink($lg), %node)) %line;',
 			$this->modifier,
 			$this->args,
 			$this->position,

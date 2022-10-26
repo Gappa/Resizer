@@ -12,6 +12,7 @@ final class ResizerExtension extends Extension
 	{
 		return [
 			'rlink' => [RlinkNode::class, 'create'],
+			'rlinkabs' => [RlinkNode::class, 'create'],
 		];
 	}
 }

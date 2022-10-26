@@ -19,7 +19,6 @@
 	``` neon
 	resizer:
 		library: 'Imagick' # Imagick|Gmagick|Gd
-		absoluteUrls: false
 		interlace: true # for progressive JPEGs
 		cache: '/resizer/'
 		qualityWebp: 70 # 0 - 100
@@ -64,9 +63,7 @@ Insert the src manually:
 
 - `<img src="{rlink 'test.jpg', '200x100'}">`
 
-Links can also be absolute, the usage is just like everywhere in Nette - `//`.
+Links can also be absolute, this uses separate tag:
 
-Beware of the usage in macro, the slashes need to be outside of the string:
-
-- `<img src="{rlink //'test.jpg', 'l400xc200'}">`
-- `<a href="{rlink //'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`
+- `<img src="{rlinkabs 'test.jpg', 'l400xc200'}">`
+- `<a href="{rlinkabs 'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`

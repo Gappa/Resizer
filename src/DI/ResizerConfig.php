@@ -6,7 +6,6 @@ namespace Nelson\Resizer\DI;
 final class ResizerConfig
 {
 	public string $library;
-	public bool $absoluteUrls = false;
 	public bool $interlace = true;
 	public string $wwwDir;
 	public string $tempDir;
