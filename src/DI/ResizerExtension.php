@@ -55,13 +55,8 @@ final class ResizerExtension extends CompilerExtension
 		$latteFactoryDef = $this->getLatteFactoryDefinition();
 		$latteFactoryDef->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
 
-		if (version_compare(Engine::VERSION, '3', '<')) {
-			// Latte 2.x
-			$latteFactoryDef->addSetup('Nelson\Resizer\Latte\Macros::install(?->getCompiler())', ['@self']);
-		} else {
-			// Latte 3.x
-			$latteFactoryDef->addSetup('addExtension', [new LatteResizerExtension]);
-		}
+		// Latte 3.x
+		$latteFactoryDef->addSetup('addExtension', [new LatteResizerExtension]);
 
 		// Presenter mappings
 		$mapping = [self::PRESENTER_MAPPING => '\Nelson\Resizer\Presenters\*Presenter'];

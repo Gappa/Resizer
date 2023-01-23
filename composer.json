@@ -9,7 +9,7 @@
 		"nette/di": "^3.0",
 		"nette/http": "^3.1",
 		"nette/schema": "^1.0",
-		"nette/utils": "^3.2",
+		"nette/utils": "^3.2 || ^4.0",
 		"imagine/imagine": "^1.2.3"
 	},
 	"require-dev": {
@@ -29,8 +29,8 @@
 		"psr-4": { "Nelson\\Resizer\\Tests\\": "tests/" }
 	},
 	"scripts": {
-		"phpstan": "./phpstan/phpstan",
-		"tests": "./vendor/bin/phpunit --configuration tests/phpunit.xml tests"
+		"phpstan": "@php ./vendor/bin/phpstan analyse --configuration ./phpstan/phpstan.neon --memory-limit 512M",
+		"tests": "@php ./vendor/bin/phpunit --configuration tests/phpunit.xml tests"
 	},
 	"config": {
 		"allow-plugins": {
