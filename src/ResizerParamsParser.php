@@ -59,6 +59,7 @@ class ResizerParamsParser
 	}
 
 
+	/** @return positive-int|null */
 	private function parseNumericValueToIntOrNull(string $value): ?int
 	{
 		if (strlen($value) === 0) {
@@ -66,7 +67,11 @@ class ResizerParamsParser
 		}
 
 		if (is_numeric($value)) {
-			return (int) $value;
+			$int = (int) $value;
+
+			if ($int > 0) {
+				return $int;
+			}
 		}
 
 		return null;

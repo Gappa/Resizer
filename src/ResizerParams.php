@@ -5,6 +5,11 @@ namespace Nelson\Resizer;
 
 class ResizerParams
 {
+
+	/**
+	 * @param positive-int|null $width
+	 * @param positive-int|null $height
+	 */
 	public function __construct(
 		private bool $ifresize,
 		private ?string $horizontal,
@@ -54,6 +59,7 @@ class ResizerParams
 	}
 
 
+	/** @return positive-int|null */
 	public function getWidth(): ?int
 	{
 		return $this->width;
@@ -66,6 +72,7 @@ class ResizerParams
 	}
 
 
+	/** @return positive-int|null */
 	public function getHeight(): ?int
 	{
 		return $this->height;

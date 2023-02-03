@@ -5,6 +5,10 @@ namespace Nelson\Resizer;
 
 class Dimensions
 {
+	/**
+	 * @param positive-int $width
+	 * @param positive-int $height
+	 */
 	public function __construct(
 		private int $width,
 		private int $height
@@ -12,12 +16,14 @@ class Dimensions
 	}
 
 
+	/** @return positive-int */
 	public function getWidth(): int
 	{
 		return $this->width;
 	}
 
 
+	/** @return positive-int */
 	public function getHeight(): int
 	{
 		return $this->height;

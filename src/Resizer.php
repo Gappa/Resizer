@@ -7,6 +7,7 @@ use Imagine\Exception\RuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use LogicException;
 use Nelson\Resizer\DI\ResizerConfig;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\SecurityException;
@@ -64,7 +65,7 @@ final class Resizer implements IResizer
 		string $path,
 		?string $params,
 		?string $format = null
-	): ?string {
+	): string {
 		$params = $this->normalizeParams($params);
 		$sourceImagePath = $this->getSourceImagePath($path);
 
@@ -167,9 +168,13 @@ final class Resizer implements IResizer
 		Geometry $geometry
 	): ImageInterface {
 		$image = $this->imagine->open($imagePathFull);
+
 		$imageCurSize = $image->getSize();
 
-		$sourceDimensions = new Dimensions($imageCurSize->getWidth(), $imageCurSize->getHeight());
+		$sourceDimensions = new Dimensions(
+			Helpers::getPositiveInt($imageCurSize->getWidth()),
+			Helpers::getPositiveInt($imageCurSize->getHeight()),
+		);
 
 		$imageOutputSize = $geometry->calculateNewSize($sourceDimensions);
 
@@ -178,8 +183,8 @@ final class Resizer implements IResizer
 			$image->crop(
 				$geometry->getCropPoint($imageOutputSize),
 				new Box(
-					$geometry->getResizerParams()->getWidth(),
-					$geometry->getResizerParams()->getHeight()
+					Helpers::getPositiveInt($geometry->getResizerParams()->getWidth()),
+					Helpers::getPositiveInt($geometry->getResizerParams()->getHeight()),
 				),
 			);
 		}

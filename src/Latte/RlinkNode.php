@@ -11,7 +11,6 @@ use Latte\Compiler\PrintContext;
 use Latte\Compiler\Tag;
 use Nelson\Resizer\DI\ResizerExtension;
 use Nette\Application\LinkGenerator;
-use Nette\Utils\Strings;
 
 final class RlinkNode extends StatementNode
 {
@@ -35,9 +34,13 @@ final class RlinkNode extends StatementNode
 		$node->mode = $tag->name;
 
 		if ($tag->isNAttribute()) {
-			// move at the beginning
-			array_unshift($tag->htmlElement->attributes->children, $node);
-			return null;
+			$children = $tag->htmlElement?->attributes?->children;
+
+			if ($children !== null) {
+				// move at the beginning
+				array_unshift($children, $node);
+				return null;
+			}
 		}
 
 		return $node;

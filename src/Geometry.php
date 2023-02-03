@@ -43,7 +43,10 @@ final class Geometry
 
 		// If params force a dimension, use them without any calculation
 		if ($rp->getForceDimensions() && $rp->hasBothDimensions()) {
-			return new Dimensions($rp->getWidth(), $rp->getHeight());
+			return new Dimensions(
+				Helpers::getPositiveInt($rp->getWidth()),
+				Helpers::getPositiveInt($rp->getHeight()),
+			);
 		}
 
 		// -------------------------------
@@ -69,23 +72,23 @@ final class Geometry
 		}
 
 		$output = new Dimensions(
-			(int) round($input->getWidth() * $outputRatio),
-			(int) round($input->getHeight() * $outputRatio),
+			Helpers::getPositiveInt((int) round($input->getWidth() * $outputRatio)),
+			Helpers::getPositiveInt((int) round($input->getHeight() * $outputRatio)),
 		);
 
 		// Need to scale up to make room for the crop again
 		if ($rp->isCrop()) {
 			if ($output->getWidth() === $rp->getWidth()) {
 				$width = $output->getWidth() * $rp->getHeight() / $output->getHeight();
-				$height = $rp->getHeight();
+				$height = Helpers::getPositiveInt($rp->getHeight());
 			} else {
-				$width = $rp->getWidth();
+				$width = Helpers::getPositiveInt($rp->getWidth());
 				$height = $output->getHeight() * $rp->getWidth() / $output->getWidth();
 			}
 
 			$output = new Dimensions(
-				(int) round($width),
-				(int) round($height),
+				Helpers::getPositiveInt((int) round($width)),
+				Helpers::getPositiveInt((int) round($height)),
 			);
 		}
 
