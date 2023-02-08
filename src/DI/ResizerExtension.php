@@ -8,7 +8,9 @@ use Gmagick;
 use Imagick;
 use Latte\Engine;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
+use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Resizer;
+use Nelson\Resizer\ResizerConfig;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Definition;
@@ -26,7 +28,7 @@ final class ResizerExtension extends CompilerExtension
 
 	public function getConfigSchema(): Schema
 	{
-		return Expect::from(new ResizerConfig, [
+		return Expect::from(new ResizerConfigDTO, [
 			'library' => Expect::anyOf('Gd', 'Imagick', 'Gmagick')->default('Imagick'),
 			'qualityWebp' => Expect::int(75)->min(0)->max(100),
 			'qualityJpeg' => Expect::int(75)->min(0)->max(100),
@@ -38,13 +40,20 @@ final class ResizerExtension extends CompilerExtension
 	public function loadConfiguration(): void
 	{
 		$builder = $this->getContainerBuilder();
-		/** @var ResizerConfig $config */
+		/** @var ResizerConfigDTO $config */
 		$config = $this->getConfig();
+		$config->isWebpSupportedByServer = $this->isWebpSupported($config);
+		$config->isAvifSupportedByServer = $this->isAvifSupported($config);
+
+		$builder->addDefinition($this->prefix('config'))
+			->setFactory(ResizerConfig::class)
+			->setArgument('config', $config);
+
+		$builder->addDefinition($this->prefix('output.format'))
+			->setFactory(OutputFormat::class);
 
 		$builder->addDefinition($this->prefix('default'))
-			->setType(Resizer::class)
-			->setArgument('config', $config)
-			->setArgument('isWebpSupportedByServer', $this->isWebpSupported($config));
+			->setType(Resizer::class);
 	}
 
 
@@ -76,25 +85,37 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	private function isWebpSupported(ResizerConfig $config): bool
+	private function isFormatSupported(ResizerConfigDTO $config, string $gd, string $imagick, string $gmagick): bool
 	{
 		$support = false;
 
 		switch ($config->library) {
 			case 'Gd':
-				$support = function_exists('gd_info') && !empty(gd_info()['WebP Support']);
+				$support = function_exists('gd_info') && !empty(gd_info()[$gd]);
 				break;
 
 			case 'Imagick':
-				$support = extension_loaded('imagick') && in_array('WEBP', Imagick::queryFormats(), true);
+				$support = extension_loaded('imagick') && in_array($imagick, Imagick::queryFormats(), true);
 				break;
 
 			case 'Gmagick':
-				$support = extension_loaded('gmagick') && in_array('WEBP', (new Gmagick)->queryformats(), true);
+				$support = extension_loaded('gmagick') && in_array($gmagick, (new Gmagick)->queryformats(), true);
 				break;
 		}
 
 		return $support;
+	}
+
+
+	private function isWebpSupported(ResizerConfigDTO $config): bool
+	{
+		return $this->isFormatSupported($config, 'WebP Support', 'WEBP', 'WEBP');
+	}
+
+
+	private function isAvifSupported(ResizerConfigDTO $config): bool
+	{
+		return $this->isFormatSupported($config, 'AVIF Support', 'AVIF', 'AVIF');
 	}
 
 

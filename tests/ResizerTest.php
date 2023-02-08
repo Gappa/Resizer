@@ -3,10 +3,15 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Tests;
 
-use Nelson\Resizer\DI\ResizerConfig;
+use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\SecurityException;
+use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Resizer;
+use Nelson\Resizer\ResizerConfig;
+use Nette\Http\Request;
+use Nette\Http\Response;
+use Nette\Http\UrlScript;
 use Nette\Utils\FileSystem;
 use PHPUnit\Framework\TestCase;
 
@@ -15,22 +20,28 @@ class ResizerTest extends TestCase
 	private static Resizer $resizer;
 	private static string $image;
 	private static ResizerConfig $config;
-	private static ?string $thumbnail = null;
 
 
 	public static function setUpBeforeClass(): void
 	{
 		parent::setUpBeforeClass();
 
-		static::$config = new ResizerConfig;
-		static::$config->tempDir = __DIR__ . '/../temp';
-		static::$config->wwwDir = __DIR__ . '/../tests';
-		static::$config->qualityJpeg = 65;
-		static::$config->qualityWebp = 65;
-		static::$config->compressionPng = 9;
-		static::$config->library = 'Gd';
+		$config = new ResizerConfigDTO;
+		$config->tempDir = __DIR__ . '/../temp';
+		$config->wwwDir = __DIR__ . '/../tests';
+		$config->qualityJpeg = 65;
+		$config->qualityAvif = 65;
+		$config->qualityWebp = 65;
+		$config->compressionPng = 9;
+		$config->library = 'Gd';
 
-		static::$resizer = new Resizer(static::$config, false);
+		$httpRequest = new Request(new UrlScript);
+		static::$config = new ResizerConfig($config);
+
+		$outputFormat = new OutputFormat($httpRequest, static::$config);
+
+
+		static::$resizer = new Resizer(static::$config, $outputFormat);
 		static::$image = 'fixtures/test.png';
 	}
 
@@ -51,7 +62,7 @@ class ResizerTest extends TestCase
 
 	public function testImageFound(): void
 	{
-		$this->assertEquals(
+		$this->assertSame(
 			__DIR__ . '/fixtures/test.png',
 			static::$resizer->getSourceImagePath(static::$image),
 		);
@@ -85,6 +96,6 @@ class ResizerTest extends TestCase
 	public static function tearDownAfterClass(): void
 	{
 		parent::tearDownAfterClass();
-		FileSystem::delete(static::$config->tempDir . static::$config->cache);
+		FileSystem::delete(static::$config->getTempDir() . static::$config->getCache());
 	}
 }

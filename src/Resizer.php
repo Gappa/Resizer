@@ -7,8 +7,6 @@ use Imagine\Exception\RuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
-use LogicException;
-use Nelson\Resizer\DI\ResizerConfig;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\SecurityException;
 use Nette\SmartObject;
@@ -18,7 +16,21 @@ final class Resizer implements IResizer
 {
 	use SmartObject;
 
-	private const SUPPORTED_FORMATS = [
+	public const FORMAT_SUFFIX_JPG = 'jpg';
+	public const FORMAT_SUFFIX_WEBP = 'webp';
+	public const FORMAT_SUFFIX_AVIF = 'avif';
+	public const FORMAT_SUFFIX_PNG = 'png';
+
+	public const FORMAT_SUFFIXES_JPG = [
+		'jpg',
+		'jpeg',
+		'jfif',
+	];
+
+	public const MIME_TYPE_WEBP = 'image/webp';
+	public const MIME_TYPE_AVIF = 'image/avif';
+
+	public const SUPPORTED_FORMATS = [
 		'jpeg',
 		'jpg',
 		'gif',
@@ -26,37 +38,24 @@ final class Resizer implements IResizer
 		'wbmp',
 		'xbm',
 		'webp',
+		'avif',
 		'bmp',
 	];
 
-	/** @var array{
-	 * 	webp_quality: int<0, 100>,
-	 * 	jpeg_quality: int<0, 100>,
-	 * 	png_compression_level: int<0, 9>
-	 * }
-	 */
-	private array $options;
-	private ResizerConfig $config;
 	private AbstractImagine $imagine;
 	private string $cacheDir;
-	private bool $isWebpSupportedByServer;
 
 
-	public function __construct(ResizerConfig $config, bool $isWebpSupportedByServer)
+	public function __construct(
+		private ResizerConfig $config,
+		private OutputFormat $outputFormat,
+	)
 	{
-		$this->config = $config;
-		$this->isWebpSupportedByServer = $isWebpSupportedByServer;
-		$this->cacheDir = $config->tempDir . $config->cache;
+		$this->cacheDir = $config->getTempDir() . $config->getCache();
 		FileSystem::createDir($this->cacheDir);
 
-		$this->options = [
-			'webp_quality' => $config->qualityWebp,
-			'jpeg_quality' => $config->qualityJpeg,
-			'png_compression_level' => $config->compressionPng,
-		];
-
 		/** @var AbstractImagine $library */
-		$library = implode('\\', ['Imagine', $config->library, 'Imagine']);
+		$library = implode('\\', ['Imagine', $config->getLibrary(), 'Imagine']);
 		$this->imagine = new $library;
 	}
 
@@ -69,9 +68,7 @@ final class Resizer implements IResizer
 		$params = $this->normalizeParams($params);
 		$sourceImagePath = $this->getSourceImagePath($path);
 
-		$extension = pathinfo($path, PATHINFO_EXTENSION) ?: '.unknown';
-
-		$thumbnailFileName = $params . '.' . $this->getOutputFormat($extension, $format);
+		$thumbnailFileName = $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
 		$thumbnailPath = $this->getThumbnailDir($path) . $thumbnailFileName;
 
 		$geometry = new Geometry($params);
@@ -83,17 +80,17 @@ final class Resizer implements IResizer
 				throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
 			}
 
-			if ($this->config->strip) {
+			if ($this->config->isStrip()) {
 				// remove all comments & metadata
 				$thumbnail->strip();
 			}
 
 			// use progressive/interlace mode?
-			if ($this->config->interlace) {
+			if ($this->config->isInterlace()) {
 				$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
 			}
 
-			$thumbnail->save($thumbnailPath, $this->options);
+			$thumbnail->save($thumbnailPath, $this->config->getOptions());
 		}
 
 		return $thumbnailPath;
@@ -102,10 +99,10 @@ final class Resizer implements IResizer
 
 	public function getSourceImagePath(string $path): string
 	{
-		$fullPath = (string) realpath($this->config->wwwDir . DIRECTORY_SEPARATOR . $path);
+		$fullPath = (string) realpath($this->config->getWwwDir() . DIRECTORY_SEPARATOR . $path);
 
 		// wonky, but better than nothing
-		if (strpos($path, '../') !== false) {
+		if (str_contains($path, '../')) {
 			throw new SecurityException('Attempt to access files outside permitted path.');
 		}
 
@@ -117,38 +114,11 @@ final class Resizer implements IResizer
 	}
 
 
-	public function canUpgradeJpg2Webp(): bool
-	{
-		return $this->config->upgradeJpg2Webp;
-	}
-
-
-	public function isWebpSupportedByServer(): bool
-	{
-		return $this->isWebpSupportedByServer;
-	}
-
-
 	private function getThumbnailDir(string $path): string
 	{
 		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
 		FileSystem::createDir($dir);
 		return $dir;
-	}
-
-
-	private function getOutputFormat(string $extension, ?string $format = null): string
-	{
-		if (!empty($format) && $this->isFormatSupported($format)) {
-			return $format;
-		}
-		return $extension;
-	}
-
-
-	private function isFormatSupported(string $format): bool
-	{
-		return in_array(strtolower($format), self::SUPPORTED_FORMATS, true);
 	}
 
 

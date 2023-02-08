@@ -19,7 +19,9 @@ final class ResizePresenter extends Presenter
 	private IResponse $response;
 
 
-	public function __construct(private IResizer $resizer)
+	public function __construct(
+		private IResizer $resizer,
+	)
 	{
 		parent::__construct();
 	}
@@ -34,6 +36,7 @@ final class ResizePresenter extends Presenter
 		// Get rid of troublemaking headers
 		$this->response->setHeader('Pragma', '');
 		$this->response->setHeader('Cache-Control', '');
+		$this->getSession()->close();
 	}
 
 
@@ -46,7 +49,7 @@ final class ResizePresenter extends Presenter
 			$image = $this->resizer->process(
 				$file,
 				$params,
-				$this->getOutputFormat($file, $format),
+				$format,
 			);
 		} catch (Exception $e) {
 			$this->error($e->getMessage());
@@ -91,37 +94,4 @@ final class ResizePresenter extends Presenter
 		return filemtime($srcFile) . '-' . md5($dstFile);
 	}
 
-
-	private function getOutputFormat(string $file, ?string $format = null): ?string
-	{
-		if (
-			empty($format) &&
-			$this->resizer->canUpgradeJpg2Webp() &&
-			$this->resizer->isWebpSupportedByServer() &&
-			$this->browserSupportsWebp() &&
-			$this->isFormatJpg($this->getImageFormat($file))
-		) {
-			return 'webp';
-		}
-		return $format;
-	}
-
-
-	private function browserSupportsWebp(): bool
-	{
-		$accept = (string) $this->request->getHeader('accept');
-		return is_int(strpos($accept, 'image/webp'));
-	}
-
-
-	private function getImageFormat(string $path): string
-	{
-		return pathinfo($path, PATHINFO_EXTENSION);
-	}
-
-
-	private function isFormatJpg(string $format): bool
-	{
-		return in_array(strtolower($format), ['jpeg', 'jpg'], true);
-	}
 }
