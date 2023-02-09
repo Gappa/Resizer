@@ -10,8 +10,8 @@ class Dimensions
 	 * @param positive-int $height
 	 */
 	public function __construct(
-		private int $width,
-		private int $height
+		private readonly int $width,
+		private readonly int $height
 	) {
 	}
 

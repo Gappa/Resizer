@@ -20,7 +20,7 @@ final class ResizePresenter extends Presenter
 
 
 	public function __construct(
-		private IResizer $resizer,
+		private readonly IResizer $resizer,
 	)
 	{
 		parent::__construct();

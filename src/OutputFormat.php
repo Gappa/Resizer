@@ -16,8 +16,8 @@ final class OutputFormat
 
 
 	public function __construct(
-		private Request $request,
-		private ResizerConfig $config,
+		private readonly Request $request,
+		private readonly ResizerConfig $config,
 	)
 	{
 		$this->browserSupportsAvif = $this->browserSupports(Resizer::MIME_TYPE_AVIF);
@@ -33,12 +33,34 @@ final class OutputFormat
 			$format = match ($suffix) {
 				Resizer::FORMAT_SUFFIX_JPG => $this->getOutputFormatForJpg(),
 				Resizer::FORMAT_SUFFIX_PNG => $this->getOutputFormatForPng(),
+				Resizer::FORMAT_SUFFIX_WEBP => $this->getOutputFormatForWebp(),
+				Resizer::FORMAT_SUFFIX_AVIF => $this->getOutputFormatForAvif(),
 				default => $suffix,
 			};
 		}
 
 		$this->isFormatSupported($format);
 		return $format;
+	}
+
+
+	private function getOutputFormatForWebp(): string
+	{
+		return match (true) {
+			$this->canServeWebp() => Resizer::FORMAT_SUFFIX_WEBP,
+			$this->canServeAvif() => Resizer::FORMAT_SUFFIX_AVIF,
+			default => Resizer::FORMAT_SUFFIX_JPG,
+		};
+	}
+
+
+	private function getOutputFormatForAvif(): string
+	{
+		return match (true) {
+			$this->canServeAvif() => Resizer::FORMAT_SUFFIX_AVIF,
+			$this->canServeWebp() => Resizer::FORMAT_SUFFIX_WEBP,
+			default => Resizer::FORMAT_SUFFIX_JPG,
+		};
 	}
 
 
@@ -64,7 +86,6 @@ final class OutputFormat
 
 	private function canServeWebp(): bool
 	{
-		dump($this->config->isWebpSupportedByServer());
 		return $this->config->isWebpSupportedByServer() && $this->browserSupportsWebp;
 	}
 
@@ -77,10 +98,10 @@ final class OutputFormat
 
 	private function isFormatSupported(string $format): void
 	{
-		if (!in_array(strtolower($format), Resizer::SUPPORTED_FORMATS, true)) {
+		if (!in_array(strtolower($format), $this->config->getSupportedFormats(), true)) {
 			throw new Exception(sprintf(
 				"Format '%s' not supported (%s).",
-				$format, implode(', ', Resizer::SUPPORTED_FORMATS),
+				$format, implode(', ', $this->config->getSupportedFormats()),
 			));
 		}
 	}
@@ -111,17 +132,10 @@ final class OutputFormat
 	}
 
 
-	private function isFilePng(string $path): bool
-	{
-		return $this->isFileOfFormat($path, Resizer::FORMAT_SUFFIX_PNG);
-	}
-
-
 	private function getFileFormat(string $file): string
 	{
 		return match (true) {
 			$this->isFileJpg($file) => Resizer::FORMAT_SUFFIX_JPG,
-			$this->isFilePng($file) => Resizer::FORMAT_SUFFIX_PNG,
 			default => pathinfo($file, PATHINFO_EXTENSION),
 		};
 	}

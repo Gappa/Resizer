@@ -11,14 +11,14 @@ class ResizerParams
 	 * @param positive-int|null $height
 	 */
 	public function __construct(
-		private bool $ifresize,
-		private ?string $horizontal,
-		private ?string $vertical,
-		private bool $forceDimensions,
-		private ?string $horizontalMargin,
-		private ?string $verticalMargin,
-		private ?int $width,
-		private ?int $height
+		private readonly bool $ifresize,
+		private readonly ?string $horizontal,
+		private readonly ?string $vertical,
+		private readonly bool $forceDimensions,
+		private readonly ?string $horizontalMargin,
+		private readonly ?string $verticalMargin,
+		private readonly ?int $width,
+		private readonly ?int $height
 	) {
 	}
 

@@ -11,10 +11,26 @@ final class ResizerConfig
 
 	use SmartObject;
 
+	/** @var array<int, string> */
+	private array $supportedFormats = [
+		'jpeg',
+		'jpg',
+		'gif',
+		'png',
+	];
+
+
 	public function __construct(
-		private ResizerConfigDTO $config,
+		private readonly ResizerConfigDTO $config,
 	)
 	{
+		if ($config->isWebpSupportedByServer) {
+			$this->supportedFormats[] = Resizer::FORMAT_SUFFIX_WEBP;
+		}
+
+		if ($config->isAvifSupportedByServer) {
+			$this->supportedFormats[] = Resizer::FORMAT_SUFFIX_AVIF;
+		}
 	}
 
 
@@ -135,6 +151,13 @@ final class ResizerConfig
 			'jpeg_quality' => $this->getQualityJpeg(),
 			'png_compression_level' => $this->getCompressionPng(),
 		];
+	}
+
+
+	/** @return array<int, string> */
+	public function getSupportedFormats(): array
+	{
+		return $this->supportedFormats;
 	}
 
 }

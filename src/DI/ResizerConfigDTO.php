@@ -11,12 +11,15 @@ final class ResizerConfigDTO
 	public string $wwwDir;
 	public string $tempDir;
 	public string $cache = '/resizer/';
+
 	public bool $upgradeJpg2Webp = true;
 	public bool $upgradePng2Webp = true;
 	public bool $upgradeJpg2Avif = true;
 	public bool $upgradePng2Avif = true;
+
 	public bool $isWebpSupportedByServer = false;
 	public bool $isAvifSupportedByServer = false;
+
 	public bool $strip = true;
 
 	/** @var int<0, 100> */

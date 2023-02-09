@@ -30,25 +30,13 @@ final class Resizer implements IResizer
 	public const MIME_TYPE_WEBP = 'image/webp';
 	public const MIME_TYPE_AVIF = 'image/avif';
 
-	public const SUPPORTED_FORMATS = [
-		'jpeg',
-		'jpg',
-		'gif',
-		'png',
-		'wbmp',
-		'xbm',
-		'webp',
-		'avif',
-		'bmp',
-	];
-
 	private AbstractImagine $imagine;
 	private string $cacheDir;
 
 
 	public function __construct(
-		private ResizerConfig $config,
-		private OutputFormat $outputFormat,
+		private readonly ResizerConfig $config,
+		private readonly OutputFormat $outputFormat,
 	)
 	{
 		$this->cacheDir = $config->getTempDir() . $config->getCache();
