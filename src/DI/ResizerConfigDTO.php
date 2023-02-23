@@ -23,14 +23,14 @@ final class ResizerConfigDTO
 	public bool $strip = true;
 
 	/** @var int<0, 100> */
-	public int $qualityAvif;
+	public int $qualityAvif = 70;
 
 	/** @var int<0, 100> */
-	public int $qualityWebp;
+	public int $qualityWebp = 70;
 
 	/** @var int<0, 100> */
-	public int $qualityJpeg;
+	public int $qualityJpeg = 70;
 
 	/** @var int<0, 9> */
-	public int $compressionPng;
+	public int $compressionPng = 9;
 }
