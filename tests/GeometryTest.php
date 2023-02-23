@@ -17,7 +17,7 @@ class GeometryTest extends TestCase
 	public static function setUpBeforeClass(): void
 	{
 		parent::setUpBeforeClass();
-		static::$sourceDimensions = new Dimensions(1600, 900);
+		self::$sourceDimensions = new Dimensions(1600, 900);
 	}
 
 
@@ -218,6 +218,10 @@ class GeometryTest extends TestCase
 	}
 
 
+	/**
+	 * @param positive-int $width
+	 * @param positive-int $height
+	 */
 	private function expected(int $width, int $height): Dimensions
 	{
 		return new Dimensions($width, $height);

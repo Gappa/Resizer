@@ -318,6 +318,9 @@ class OutputFormatTest extends TestCase
 	}
 
 
+	/**
+	 * @return array{accepts?: string}
+	 */
 	private function getHeaders(bool $webpSupported, bool $avifSupported): array
 	{
 		$headers = [];

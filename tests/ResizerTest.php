@@ -36,27 +36,26 @@ class ResizerTest extends TestCase
 		$config->library = 'Gd';
 
 		$httpRequest = new Request(new UrlScript);
-		static::$config = new ResizerConfig($config);
+		self::$config = new ResizerConfig($config);
 
-		$outputFormat = new OutputFormat($httpRequest, static::$config);
+		$outputFormat = new OutputFormat($httpRequest, self::$config);
 
-
-		static::$resizer = new Resizer(static::$config, $outputFormat);
-		static::$image = 'fixtures/test.png';
+		self::$resizer = new Resizer(self::$config, $outputFormat);
+		self::$image = 'fixtures/test.png';
 	}
 
 
 	public function testImageNotFound(): void
 	{
 		$this->expectException(ImageNotFoundOrReadableException::class);
-		static::$resizer->getSourceImagePath('does_not_exist.jpg');
+		self::$resizer->getSourceImagePath('does_not_exist.jpg');
 	}
 
 
 	public function testSecurityException(): void
 	{
 		$this->expectException(SecurityException::class);
-		static::$resizer->getSourceImagePath('../../haxxor.png');
+		self::$resizer->getSourceImagePath('../../haxxor.png');
 	}
 
 
@@ -64,14 +63,14 @@ class ResizerTest extends TestCase
 	{
 		$this->assertSame(
 			__DIR__ . '/fixtures/test.png',
-			static::$resizer->getSourceImagePath(static::$image),
+			self::$resizer->getSourceImagePath(self::$image),
 		);
 	}
 
 
 	public function testProcess(): void
 	{
-		$thumbnail = FileSystem::normalizePath(static::$resizer->process(static::$image, 'c200xc200'));
+		$thumbnail = FileSystem::normalizePath(self::$resizer->process(self::$image, 'c200xc200'));
 
 		$this->assertSame(
 			FileSystem::normalizePath(__DIR__ . '/../temp/resizer/fixtures/test.png/c200xc200.png'),
@@ -82,13 +81,13 @@ class ResizerTest extends TestCase
 
 	public function testGeneratedImage(): void
 	{
-		$thumbnail = FileSystem::normalizePath(static::$resizer->process(static::$image, 'c200xc200'));
+		$thumbnail = FileSystem::normalizePath(self::$resizer->process(self::$image, 'c200xc200'));
 
 		$size = getimagesize($thumbnail);
 
 		$this->assertSame(
 			[200, 200],
-			[$size[0], $size[1]],
+			[$size[0] ?? 0, $size[1] ?? 0],
 		);
 	}
 
@@ -96,6 +95,6 @@ class ResizerTest extends TestCase
 	public static function tearDownAfterClass(): void
 	{
 		parent::tearDownAfterClass();
-		FileSystem::delete(static::$config->getTempDir() . static::$config->getCache());
+		FileSystem::delete(self::$config->getTempDir() . self::$config->getCache());
 	}
 }
