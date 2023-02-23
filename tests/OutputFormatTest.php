@@ -20,10 +20,10 @@ class OutputFormatTest extends TestCase
 
 	public function testJpg(): void
 	{
-		$httpRequest = new Request(new UrlScript);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
-			$this->getConfig(),
+			$this->getConfig(false, false),
 		);
 
 		$this->assertSame(
@@ -43,9 +43,33 @@ class OutputFormatTest extends TestCase
 	}
 
 
+	public function testJpgWithoutServerSupport(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
+		$outputFormat = new OutputFormat($httpRequest, $this->getConfig(false, false));
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.jpg'),
+			'jpg',
+		);
+	}
+
+
+	public function testJpgWithoutBrowserSupport(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(false, false));
+		$outputFormat = new OutputFormat($httpRequest, $this->getConfig(true, true));
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.jpg'),
+			'jpg',
+		);
+	}
+
+
 	public function testAvif(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/avif,image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -60,10 +84,10 @@ class OutputFormatTest extends TestCase
 
 	public function testAvif2Jpg(): void
 	{
-		$httpRequest = new Request(new UrlScript);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
-			$this->getConfig(),
+			$this->getConfig(false, false),
 		);
 
 		$this->assertSame(
@@ -75,10 +99,10 @@ class OutputFormatTest extends TestCase
 
 	public function testAvif2Webp(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, false));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
-			$this->getConfig(true),
+			$this->getConfig(true, false),
 		);
 
 		$this->assertSame(
@@ -90,7 +114,7 @@ class OutputFormatTest extends TestCase
 
 	public function testWebp(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/avif,image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -105,10 +129,10 @@ class OutputFormatTest extends TestCase
 
 	public function testWebp2Jpg(): void
 	{
-		$httpRequest = new Request(new UrlScript);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(false, false));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
-			$this->getConfig(),
+			$this->getConfig(false, false),
 		);
 
 		$this->assertSame(
@@ -120,7 +144,7 @@ class OutputFormatTest extends TestCase
 
 	public function testWebp2Avif(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/avif']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(false, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(false, true),
@@ -135,7 +159,7 @@ class OutputFormatTest extends TestCase
 
 	public function testJpg2Avif(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/avif,image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -150,7 +174,7 @@ class OutputFormatTest extends TestCase
 
 	public function testJpg2Webp(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, false));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -165,7 +189,7 @@ class OutputFormatTest extends TestCase
 
 	public function testPng2Avif(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/avif,image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -180,7 +204,7 @@ class OutputFormatTest extends TestCase
 
 	public function testPng2Webp(): void
 	{
-		$httpRequest = new Request(new UrlScript, headers: ['accept' => 'image/webp']);
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, false));
 		$outputFormat = new OutputFormat(
 			$httpRequest,
 			$this->getConfig(true, true),
@@ -195,8 +219,8 @@ class OutputFormatTest extends TestCase
 
 	public function testPng(): void
 	{
-		$httpRequest = new Request(new UrlScript);
-		$outputFormat = new OutputFormat($httpRequest, $this->getConfig());
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(false, false));
+		$outputFormat = new OutputFormat($httpRequest, $this->getConfig(false, false));
 
 		$this->assertSame(
 			$outputFormat->getOutputFormat('test.png'),
@@ -205,7 +229,77 @@ class OutputFormatTest extends TestCase
 	}
 
 
-	private function getConfig(bool $webpSupported = false, bool $avifSupported = false): ResizerConfig
+	public function testPngWithoutServerSupport(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
+		$outputFormat = new OutputFormat($httpRequest, $this->getConfig(false, false));
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.png'),
+			'png',
+		);
+	}
+
+
+	public function testPngWithoutBrowserSupport(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(false, false));
+		$outputFormat = new OutputFormat($httpRequest, $this->getConfig(true, true));
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.png'),
+			'png',
+		);
+	}
+
+
+	public function testForcePng2Jpg(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
+		$outputFormat = new OutputFormat(
+			$httpRequest,
+			$this->getConfig(true, true),
+		);
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.png', 'jpg'),
+			'jpg',
+		);
+	}
+
+
+	public function testForcePng(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
+		$outputFormat = new OutputFormat(
+			$httpRequest,
+			$this->getConfig(true, true),
+		);
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.png', 'png'),
+			'png',
+		);
+	}
+
+
+	public function testForceJpg2png(): void
+	{
+		$httpRequest = new Request(new UrlScript, headers: $this->getHeaders(true, true));
+		$outputFormat = new OutputFormat(
+			$httpRequest,
+			$this->getConfig(true, true),
+		);
+
+		$this->assertSame(
+			$outputFormat->getOutputFormat('test.jpg', 'png'),
+			'png',
+		);
+	}
+
+
+
+	private function getConfig(bool $webpSupported, bool $avifSupported): ResizerConfig
 	{
 		$config = new ResizerConfigDTO;
 
@@ -221,6 +315,27 @@ class OutputFormatTest extends TestCase
 		$config->isWebpSupportedByServer = $webpSupported;
 
 		return new ResizerConfig($config);
+	}
+
+
+	private function getHeaders(bool $webpSupported, bool $avifSupported): array
+	{
+		$headers = [];
+		$accepts = [];
+
+		if ($webpSupported) {
+			$accepts[] = 'image/webp';
+		}
+
+		if ($avifSupported) {
+			$accepts[] = 'image/avif';
+		}
+
+		if (count($accepts)) {
+			$headers['accept'] = implode(',', $accepts);
+		}
+
+		return $headers;
 	}
 
 }
