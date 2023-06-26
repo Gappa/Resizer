@@ -14,7 +14,7 @@ final class Geometry
 	private ResizerParams $resizerParams;
 
 
-	public function __construct(string $rawParams)
+	public function __construct(?string $rawParams)
 	{
 		$this->resizerParams = (new ResizerParamsParser($rawParams))->getParams();
 	}

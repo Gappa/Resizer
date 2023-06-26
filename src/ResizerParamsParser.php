@@ -10,7 +10,18 @@ class ResizerParamsParser
 {
 	use SmartObject;
 
-	private const PATTERN = '#(?:(ifresize)-)?([lcr]?)(\d*)x([tcb]?)(\d*)(!?)([+-]?[0-9]*)([+-]?[0-9]*)#';
+	private const PATTERN = '~
+		^(?:auto|                        # use the image as-is, only compress/convert
+			(?:(ifresize)-)?              # ifresize modifier
+			([lcr]?)(\d*)                 # width modifer and dimension
+			x                             # divider
+			([tcb]?)(\d*)                 # height modifier and dimension
+			(!?)                          # force dimensions, disregard aspect ratio
+			([+-]?[0-9]*)                 # horizontal margin, unused
+			([+-]?[0-9]*)                 # vertical margin, unused
+			(?:-q([1-9][0-9]?|100))?      # quality, 1-100
+		)$
+	~x';
 
 	private ResizerParams $params;
 
@@ -31,14 +42,15 @@ class ResizerParamsParser
 			throw new CouldNotParseResizerParamsException('Wrong params format.');
 		}
 
-		$ifresize = (bool) $matches[1];
-		$horizontal = $matches[2] ?: null;
-		$vertical = $matches[4] ?: null;
-		$width = $this->parseNumericValueToIntOrNull($matches[3]);
-		$height = $this->parseNumericValueToIntOrNull($matches[5]);
-		$suffix = $matches[6];
-		$horizontalMargin = $matches[7] ?: null;
-		$verticalMargin = $matches[8] ?: null;
+		$ifresize = (bool) ($matches[1] ?? '');
+		$horizontal = $matches[2] ?? '';
+		$vertical = $matches[4] ?? '';
+		$width = $this->parseNumericValueToIntOrNull($matches[3] ?? '');
+		$height = $this->parseNumericValueToIntOrNull($matches[5] ?? '');
+		$suffix = $matches[6] ?? '';
+		$horizontalMargin = $matches[7] ?? '';
+		$verticalMargin = $matches[8] ?? '';
+		$quality = $this->parseNumericValueToIntOrNull($matches[9] ?? '');
 
 		return new ResizerParams(
 			$ifresize,
@@ -48,7 +60,8 @@ class ResizerParamsParser
 			$horizontalMargin,
 			$verticalMargin,
 			$width,
-			$height
+			$height,
+			$quality,
 		);
 	}
 

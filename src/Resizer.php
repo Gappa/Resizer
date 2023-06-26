@@ -53,7 +53,6 @@ final class Resizer implements IResizer
 		?string $params,
 		?string $format = null
 	): string {
-		$params = $this->normalizeParams($params);
 		$sourceImagePath = $this->getSourceImagePath($path);
 
 		$thumbnailFileName = $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
@@ -107,17 +106,6 @@ final class Resizer implements IResizer
 		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
 		FileSystem::createDir($dir);
 		return $dir;
-	}
-
-
-	private function normalizeParams(?string $params): string
-	{
-		// skippable argument defaults "hack" & backwards compat
-		if ($params === null || $params === 'auto') {
-			return 'x';
-		}
-
-		return $params;
 	}
 
 

@@ -9,6 +9,7 @@ class ResizerParams
 	/**
 	 * @param positive-int|null $width
 	 * @param positive-int|null $height
+	 * @param positive-int|null $quality
 	 */
 	public function __construct(
 		private readonly bool $ifresize,
@@ -18,7 +19,8 @@ class ResizerParams
 		private readonly ?string $horizontalMargin,
 		private readonly ?string $verticalMargin,
 		private readonly ?int $width,
-		private readonly ?int $height
+		private readonly ?int $height,
+		private readonly ?int $quality,
 	) {
 	}
 
@@ -100,6 +102,13 @@ class ResizerParams
 	public function hasNoDimensions(): bool
 	{
 		return $this->width === null && $this->height === null;
+	}
+
+
+	/** @return positive-int|null */
+	public function getQuality(): ?int
+	{
+		return $this->quality;
 	}
 
 

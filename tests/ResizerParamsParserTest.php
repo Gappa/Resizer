@@ -10,6 +10,26 @@ use PHPUnit\Framework\TestCase;
 
 class ResizerParamsParserTest extends TestCase
 {
+
+	public function testAuto(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			null,
+			null,
+			null,
+			null,
+		);
+
+		$actual = $this->parse('auto');
+		$this->assertEquals($expected, $actual);
+	}
+
+
 	public function testEmpty(): void
 	{
 		$expected = new ResizerParams(
@@ -17,6 +37,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			null,
 			false,
+			null,
 			null,
 			null,
 			null,
@@ -39,6 +60,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			500,
 			null,
+			null,
 		);
 
 		$actual = $this->parse('500x');
@@ -57,6 +79,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			null,
 			500,
+			null,
 		);
 
 		$actual = $this->parse('x500');
@@ -75,6 +98,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			400,
 			300,
+			null,
 		);
 
 		$actual = $this->parse('400x300');
@@ -93,6 +117,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			500,
 			500,
+			null,
 		);
 
 		$actual = $this->parse('500x500!');
@@ -110,6 +135,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			null,
 			400,
+			null,
 			null,
 		);
 
@@ -129,6 +155,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			null,
 			400,
+			null,
 		);
 
 		$actual = $this->parse('ifresize-x400');
@@ -147,6 +174,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			400,
 			600,
+			null,
 		);
 
 		$actual = $this->parse('ifresize-400x600');
@@ -166,6 +194,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			500,
 			800,
+			null,
 		);
 
 		$actual = $this->parse('c500x800');
@@ -184,6 +213,7 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			500,
 			800,
+			null,
 		);
 
 		$actual = $this->parse('500xc800');
@@ -202,10 +232,70 @@ class ResizerParamsParserTest extends TestCase
 			null,
 			500,
 			800,
+			null,
 		);
 
 		$actual = $this->parse('c500xc800');
 		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testQuality1(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			null,
+			null,
+			null,
+			15,
+		);
+
+		$actual = $this->parse('x-q15');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testQuality2(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			null,
+			100,
+			200,
+			90,
+		);
+
+		$actual = $this->parse('100x200-q90');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testWrongKeyword1(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('autobus');
+	}
+
+
+	public function testWrongKeyword2(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('reauto');
+	}
+
+
+	public function testWrongKeyword3(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('xxx');
 	}
 
 
