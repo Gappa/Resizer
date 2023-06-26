@@ -9,7 +9,7 @@ class ResizerParams
 	/**
 	 * @param positive-int|null $width
 	 * @param positive-int|null $height
-	 * @param positive-int|null $quality
+	 * @param int<0,100>|null $quality
 	 */
 	public function __construct(
 		private readonly bool $ifresize,
@@ -74,7 +74,7 @@ class ResizerParams
 	}
 
 
-	/** @return positive-int|null */
+	/** @return int<0,100>|null */
 	public function getHeight(): ?int
 	{
 		return $this->height;

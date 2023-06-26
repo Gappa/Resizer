@@ -39,11 +39,11 @@ final class Resizer implements IResizer
 		private readonly OutputFormat $outputFormat,
 	)
 	{
-		$this->cacheDir = $config->getTempDir() . $config->getCache();
+		$this->cacheDir = $this->config->getTempDir() . $this->config->getCache();
 		FileSystem::createDir($this->cacheDir);
 
 		/** @var AbstractImagine $library */
-		$library = implode('\\', ['Imagine', $config->getLibrary(), 'Imagine']);
+		$library = implode('\\', ['Imagine', $this->config->getLibrary(), 'Imagine']);
 		$this->imagine = new $library;
 	}
 
@@ -51,7 +51,7 @@ final class Resizer implements IResizer
 	public function process(
 		string $path,
 		?string $params,
-		?string $format = null
+		?string $format = null,
 	): string {
 		$sourceImagePath = $this->getSourceImagePath($path);
 
@@ -63,7 +63,7 @@ final class Resizer implements IResizer
 		if (!$this->thumbnailExists($thumbnailPath)) {
 			try {
 				$thumbnail = $this->processImage($sourceImagePath, $geometry);
-			} catch (RuntimeException $e) {
+			} catch (RuntimeException) {
 				throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
 			}
 
@@ -77,7 +77,7 @@ final class Resizer implements IResizer
 				$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
 			}
 
-			$thumbnail->save($thumbnailPath, $this->config->getOptions());
+			$thumbnail->save($thumbnailPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
 		}
 
 		return $thumbnailPath;

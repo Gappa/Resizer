@@ -278,6 +278,44 @@ class ResizerParamsParserTest extends TestCase
 	}
 
 
+	public function testQuality3(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			null,
+			100,
+			200,
+			0,
+		);
+
+		$actual = $this->parse('100x200-q0');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testQuality4(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			null,
+			100,
+			200,
+			100,
+		);
+
+		$actual = $this->parse('100x200-q100');
+		$this->assertEquals($expected, $actual);
+	}
+
+
 	public function testWrongKeyword1(): void
 	{
 		$this->expectException(CouldNotParseResizerParamsException::class);

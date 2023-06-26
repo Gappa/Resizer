@@ -136,6 +136,7 @@ final class ResizerConfig
 
 
 	/**
+	 * @param int<0,100>|null $quality
 	 * @return array{
 	 * 	avif_quality: int<0, 100>,
 	 * 	webp_quality: int<0, 100>,
@@ -143,13 +144,22 @@ final class ResizerConfig
 	 * 	png_compression_level: int<0, 9>
 	 * }
 	 */
-	public function getOptions(): array
+	public function getOptions(?int $quality = null): array
 	{
+
+		if ($quality !== null) {
+			$qualityPng = (int) round($quality / 10);
+
+			if ($qualityPng > 9) {
+				$qualityPng = 9;
+			}
+		}
+
 		return [
-			'avif_quality' => $this->getQualityAvif(),
-			'webp_quality' => $this->getQualityWebp(),
-			'jpeg_quality' => $this->getQualityJpeg(),
-			'png_compression_level' => $this->getCompressionPng(),
+			'avif_quality' => $quality ?? $this->getQualityAvif() ,
+			'webp_quality' => $quality ?? $this->getQualityWebp(),
+			'jpeg_quality' => $quality ?? $this->getQualityJpeg(),
+			'png_compression_level' => $qualityPng ?? $this->getCompressionPng(),
 		];
 	}
 

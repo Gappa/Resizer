@@ -43,7 +43,7 @@ final class ResizePresenter extends Presenter
 	public function actionDefault(
 		string $file,
 		?string $params = null,
-		?string $format = null
+		?string $format = null,
 	): void {
 		try {
 			$image = $this->resizer->process(

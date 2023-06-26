@@ -19,7 +19,7 @@ class ResizerParamsParser
 			(!?)                          # force dimensions, disregard aspect ratio
 			([+-]?[0-9]*)                 # horizontal margin, unused
 			([+-]?[0-9]*)                 # vertical margin, unused
-			(?:-q([1-9][0-9]?|100))?      # quality, 1-100
+			(?:-q([0-9][0-9]?|100))?      # quality, 0-100
 		)$
 	~x';
 
@@ -72,7 +72,7 @@ class ResizerParamsParser
 	}
 
 
-	/** @return positive-int|null */
+	/** @return int|null */
 	private function parseNumericValueToIntOrNull(string $value): ?int
 	{
 		if (strlen($value) === 0) {
@@ -82,11 +82,12 @@ class ResizerParamsParser
 		if (is_numeric($value)) {
 			$int = (int) $value;
 
-			if ($int > 0) {
+			if ($int >= 0) {
 				return $int;
 			}
 		}
 
 		return null;
 	}
+
 }

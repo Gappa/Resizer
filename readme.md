@@ -38,21 +38,21 @@ AVIF is preferred over WEBP in case both upgrades are enabled.
 
 # Usage
 
-Order of parameters:
+Order of parameters is dependant on the router, the default is:
 
-1. Image file. `string`
-2. Dimensions. `string`
+1. Dimensions & modifiers. `string`
+2. Image file. `string`
 3. Format. `string`
 
-## Dimensions
+## Dimensions & modifiers
 
-Allowed variants:
+### Dimensions:
 
 - `100x100` - width and height must be equal or less, resized according to AR.
 - `x100` - height must be equal or less.
 - `100x` - width must be equal or less.
 
-Modificators:
+### Modifiers:
 
 - Cropping:
 	- width: `l` - left, `c` - center, `r` - right.
@@ -61,12 +61,14 @@ Modificators:
 	- `ifresize-100x200` - do not resize if the source is smaller.
 - Force dimensions:
 	- `100x200!` - resize to these dimensions, regardless of AR.
+- Quality:
+	- `-q50` - set custom quality
 
-Formats:
+## Format:
 
 - The format parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to WEBP/AVIF.
 
-## Types
+# Types
 
 Insert the src manually:
 
