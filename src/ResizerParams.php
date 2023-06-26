@@ -74,7 +74,7 @@ class ResizerParams
 	}
 
 
-	/** @return int<0,100>|null */
+	/** @return positive-int|null */
 	public function getHeight(): ?int
 	{
 		return $this->height;
@@ -105,7 +105,7 @@ class ResizerParams
 	}
 
 
-	/** @return positive-int|null */
+	/** @return int<0, 100>|null */
 	public function getQuality(): ?int
 	{
 		return $this->quality;

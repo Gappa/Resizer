@@ -316,6 +316,101 @@ class ResizerParamsParserTest extends TestCase
 	}
 
 
+	public function testMargin1(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			'-100',
+			null,
+			100,
+			200,
+			null,
+		);
+
+		$actual = $this->parse('100x200-hm-100');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testMargin2(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			'+100',
+			null,
+			100,
+			200,
+			null,
+		);
+
+		$actual = $this->parse('100x200-hm+100');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testMargin3(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			'-50',
+			100,
+			200,
+			null,
+		);
+
+		$actual = $this->parse('100x200-vm-50');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testMargin4(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			null,
+			'+50',
+			100,
+			200,
+			null,
+		);
+
+		$actual = $this->parse('100x200-vm+50');
+		$this->assertEquals($expected, $actual);
+	}
+
+
+	public function testMargin5(): void
+	{
+		$expected = new ResizerParams(
+			false,
+			null,
+			null,
+			false,
+			'-100',
+			'+50',
+			100,
+			200,
+			null,
+		);
+
+		$actual = $this->parse('100x200-hm-100-vm+50');
+		$this->assertEquals($expected, $actual);
+	}
+
+
 	public function testWrongKeyword1(): void
 	{
 		$this->expectException(CouldNotParseResizerParamsException::class);
@@ -341,6 +436,27 @@ class ResizerParamsParserTest extends TestCase
 	{
 		$this->expectException(CouldNotParseResizerParamsException::class);
 		$this->parse('');
+	}
+
+
+	public function testEmptyZeroDimensions1(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('0x');
+	}
+
+
+	public function testEmptyZeroDimensions2(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('x0');
+	}
+
+
+	public function testEmptyZeroDimensions3(): void
+	{
+		$this->expectException(CouldNotParseResizerParamsException::class);
+		$this->parse('0x0');
 	}
 
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
+use Exception;
 use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nette\SmartObject;
 
@@ -148,11 +149,8 @@ final class ResizerConfig
 	{
 
 		if ($quality !== null) {
-			$qualityPng = (int) round($quality / 10);
-
-			if ($qualityPng > 9) {
-				$qualityPng = 9;
-			}
+			/** @var int<0, 9> $qualityPng */
+			$qualityPng = (int) round($this->remapRange($quality, 0, 100, 0, 9));
 		}
 
 		return [
@@ -168,6 +166,55 @@ final class ResizerConfig
 	public function getSupportedFormats(): array
 	{
 		return $this->supportedFormats;
+	}
+
+
+	/**
+	 * @see https://stackoverflow.com/a/36244586/2458557
+	 */
+	private function remapRange(
+		int $intValue,
+		int $oMin,
+		int $oMax,
+		int $nMin,
+		int $nMax
+	): float {
+		// Range check
+		if ($oMin === $oMax) {
+			throw new Exception('Warning: Zero input range');
+		}
+
+		if ($nMin === $nMax) {
+			throw new Exception('Warning: Zero output range');
+		}
+
+		// Check reversed input range
+		$bReverseInput = false;
+		$intOldMin = min($oMin, $oMax);
+		$intOldMax = max($oMin, $oMax);
+		if ($intOldMin !== $oMin) {
+			$bReverseInput = true;
+		}
+
+		// Check reversed output range
+		$bReverseOutput = false;
+		$intNewMin = min($nMin, $nMax);
+		$intNewMax = max($nMin, $nMax);
+		if ($intNewMin !== $nMin) {
+			$bReverseOutput = true;
+		}
+
+		$fRatio = ($intValue - $intOldMin) * ($intNewMax - $intNewMin) / ($intOldMax - $intOldMin);
+		if ($bReverseInput) {
+			$fRatio = ($intOldMax - $intValue) * ($intNewMax - $intNewMin) / ($intOldMax - $intOldMin);
+		}
+
+		$fResult = $fRatio + $intNewMin;
+		if ($bReverseOutput) {
+			$fResult = $intNewMax - $fRatio;
+		}
+
+		return $fResult;
 	}
 
 }

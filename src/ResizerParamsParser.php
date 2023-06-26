@@ -13,12 +13,12 @@ class ResizerParamsParser
 	private const PATTERN = '~
 		^(?:auto|                        # use the image as-is, only compress/convert
 			(?:(ifresize)-)?              # ifresize modifier
-			([lcr]?)(\d*)                 # width modifer and dimension
+			([lcr]?)([1-9][0-9]*)?        # width modifer and dimension
 			x                             # divider
-			([tcb]?)(\d*)                 # height modifier and dimension
+			([tcb]?)([1-9][0-9]*)?        # height modifier and dimension
 			(!?)                          # force dimensions, disregard aspect ratio
-			([+-]?[0-9]*)                 # horizontal margin, unused
-			([+-]?[0-9]*)                 # vertical margin, unused
+			(?:-hm([+-]?[0-9]*))?         # horizontal margin, unused
+			(?:-vm([+-]?[0-9]*))?         # vertical margin, unused
 			(?:-q([0-9][0-9]?|100))?      # quality, 0-100
 		)$
 	~x';
@@ -82,7 +82,7 @@ class ResizerParamsParser
 		if (is_numeric($value)) {
 			$int = (int) $value;
 
-			if ($int >= 0) {
+			if ($int > 0) {
 				return $int;
 			}
 		}
