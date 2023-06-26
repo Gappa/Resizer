@@ -28,10 +28,6 @@
 	"autoload-dev": {
 		"psr-4": { "Nelson\\Resizer\\Tests\\": "tests/" }
 	},
-	"scripts": {
-		"phpstan": "@php ./vendor/bin/phpstan analyse --configuration ./phpstan/phpstan.neon --memory-limit 512M",
-		"tests": "@php ./vendor/bin/phpunit --configuration tests/phpunit.xml tests"
-	},
 	"config": {
 		"allow-plugins": {
 			"phpstan/extension-installer": true

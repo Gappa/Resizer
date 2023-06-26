@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+# Define vars
+MAINTENANCE_FILE=".maintenance";
+PHP="php81"
+COMPOSER_INSTALL_COMMAND_DEV="$PHP composer.phar install";
+
+PHP="$PHP";
+COMPOSER_INSTALL_COMMAND="$COMPOSER_INSTALL_COMMAND_DEV";
+
+# Command shortcuts
+PHPSTAN="$PHP vendor/bin/phpstan analyse --configuration ./phpstan/phpstan.neon --memory-limit 512M"
+PHPUNIT="$PHP vendor/bin/phpunit --configuration tests/phpunit.xml tests"
+
+# Graphics
+#OK="\e[32m✔\e[0m";
+#KO="\e[31m✖\e[0m";
+HR="\e[95m---------------------------------------------------------------------------\e[0m";
+VR="\e[95m|\e[0m";
+#INFO="\e[96mINFO\e[0m"
+#PROMPT="\e[93mQUESTION\e[0m"
+
+# Define standard colors
+if [[ $TERM == *xterm* ]]; then
+  BLACK=$(tput -Txterm setaf 0)
+  RED=$(tput -Txterm setaf 1)
+  GREEN=$(tput -Txterm setaf 2)
+  GREEN2="";
+  YELLOW=$(tput -Txterm setaf 3)
+  LIGHTPURPLE=$(tput -Txterm setaf 4)
+  PURPLE=$(tput -Txterm setaf 5)
+  BLUE=$(tput -Txterm setaf 6)
+  WHITE=$(tput -Txterm setaf 7)
+  RESET=$(tput -Txterm sgr0)
+  RESET2="";
+else
+  BLACK=""
+  RED=""
+  GREEN=""
+  YELLOW=""
+  LIGHTPURPLE=""
+  PURPLE=""
+  BLUE=""
+  WHITE=""
+  RESET=""
+fi
+
+function help() { ## Print out this help
+    echo ""
+    echo "${YELLOW}Available commands:${RESET}"
+    grep -E '^function [a-zA-Z0-9_-]+\(\) { ## ' "$0" \
+        | sed -E 's/^function ([a-zA-Z0-9_-]+)\(\) \{ ## (.+)/'"  ${GREEN2}"'\1'"${RESET2}"';\2/' \
+        | sort \
+        | column -t -s ";"
+}
+
+function composer() { ## Run composer with parameters
+	"$PHP" "composer.phar" "$@"
+}
+
+function phpstan() { ## Run phpstan
+	eval "$PHPSTAN"
+}
+
+function tests() { ## Run tests
+	eval "$PHPUNIT"
+}
+
+function test() { ## Run a specific set of tests, the argument is passed to the --filter param
+	eval "$PHPUNIT" --filter "$@"
+}
+
+function php() { ## Run the project's version of PHP
+	"$PHP" "$@"
+}
+
+function set-permissions() { ## Set correct permissions
+	chmodCommand="chmod ug+w . -R --quiet";
+	$chmodCommand
+}
+
+function log() {
+	echo -e "$HR";
+	echo -e "$VR \e[96m$1\e[0m";
+	echo -e "$HR";
+}
+
+function pre-push() { ## Run checks before pushing
+	tests;
+}
+
+# ------------------------------------------------ Must be at the end of the file
+
+# Check if there are any arguments passed
+if [[ $# -eq 0 ]]; then
+	help
+	exit 0
+fi
+
+# Check if the specified command is a function and call it
+if declare -f "$1" > /dev/null; then
+	"$@"
+else
+	echo -E "${RED}Error:${RESET} Unknown command '$1'. Type 'help' for a list of available commands."
+	exit 1
+fi
