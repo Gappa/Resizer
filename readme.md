@@ -46,35 +46,40 @@ Order of parameters is dependant on the router, the default is:
 
 ## Dimensions & modifiers
 
+Syntax:
+	- `[ifresize-][[cropX]width]x[[cropY]height][forceDimensions][-quality]`
+
 ### Dimensions:
 
 - `100x100` - width and height must be equal or less, resized according to AR.
 - `x100` - height must be equal or less.
 - `100x` - width must be equal or less.
-
-### Modifiers:
-
+- `100x50!` - dimensions are forced without respecting ifresize and AR.
 - Cropping:
 	- width: `l` - left, `c` - center, `r` - right.
 	- height: `t` - top, `c` - center, `b` - bottom.
-- Conditional resize:
-	- `ifresize-100x200` - do not resize if the source is smaller.
-- Force dimensions:
-	- `100x200!` - resize to these dimensions, regardless of AR.
-- Quality:
-	- `-q50` - set custom quality
+ 	- Example: `c100xc100` 	
 
+### Modifiers:
+
+- `ifresize`
+	- Example: `ifresize-100x200`
+	- If the image is smaller than the desired width and/or height, image will not be enlarged.
+- Quality
+  	- Example: `x-q50` - sets just the quality without any resize.
+  	- For WEBP/AVIF quality set to `100` means lossless compression.
+ 
 ## Format:
 
 - The format parameter can be used to switch between image file formats, e.g. `<source srcset="">` in `<picture>` tag for converting jpegs to WEBP/AVIF.
 
-# Types
+# Relative and absolute URLs
 
-Insert the src manually:
+Relative:
 
 - `<img src="{rlink 'test.jpg', '200x100'}">`
 
-Links can also be absolute, this uses separate tag:
+Absolute, uses diffent tag:
 
 - `<img src="{rlinkabs 'test.jpg', 'l400xc200'}">`
 - `<a href="{rlinkabs 'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`
