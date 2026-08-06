@@ -9,6 +9,7 @@ use Imagick;
 use Latte\Engine;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
 use Nelson\Resizer\OutputFormat;
+use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
 use Nette\Application\IPresenterFactory;
