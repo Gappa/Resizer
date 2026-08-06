@@ -54,6 +54,8 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class);
+
+		$builder->addDefinition(null)->setType(ResizePresenter::class);
 	}
 
 
