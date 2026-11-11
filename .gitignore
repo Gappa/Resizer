@@ -10,3 +10,4 @@ vendor/
 temp/
 .idea/
 
+tests/_public/

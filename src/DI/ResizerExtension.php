@@ -12,11 +12,13 @@ use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
+use Nelson\Resizer\ResizerLinkGenerator;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Definition;
 use Nette\DI\Definitions\FactoryDefinition;
 use Nette\DI\Definitions\ServiceDefinition;
+use Nette\DI\Definitions\Statement;
 use Nette\Schema\Expect;
 use Nette\Schema\Schema;
 
@@ -56,6 +58,9 @@ final class ResizerExtension extends CompilerExtension
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class);
 
+		$builder->addDefinition($this->prefix('linkGenerator'))
+			->setFactory(ResizerLinkGenerator::class);
+
 		$builder->addDefinition(null)->setType(ResizePresenter::class);
 	}
 
@@ -68,7 +73,9 @@ final class ResizerExtension extends CompilerExtension
 		$latteFactoryDef->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
 
 		// Latte 3.x
-		$latteFactoryDef->addSetup('addExtension', [new LatteResizerExtension]);
+		$latteFactoryDef->addSetup('addExtension', [
+			new Statement(LatteResizerExtension::class, [$this->prefix('@linkGenerator')]),
+		]);
 
 		// Presenter mappings
 		$mapping = [self::PRESENTER_MAPPING => '\Nelson\Resizer\Presenters\*Presenter'];

@@ -6,6 +6,7 @@ namespace Nelson\Resizer;
 use Exception;
 use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nette\SmartObject;
+use Nette\Utils\FileSystem;
 
 final class ResizerConfig
 {
@@ -20,11 +21,18 @@ final class ResizerConfig
 		'png',
 	];
 
+	/** Public cache directory relative to wwwDir, with a trailing slash; null when static mode is off */
+	private ?string $publicCacheUrlPath = null;
+
 
 	public function __construct(
 		private readonly ResizerConfigDTO $config,
 	)
 	{
+		if ($config->publicCacheDir !== null) {
+			$this->publicCacheUrlPath = $this->resolvePublicCacheUrlPath($config->wwwDir, $config->publicCacheDir);
+		}
+
 		if ($config->isWebpSupportedByServer) {
 			$this->supportedFormats[] = Resizer::FORMAT_SUFFIX_WEBP;
 		}
@@ -63,6 +71,37 @@ final class ResizerConfig
 	public function getCache(): string
 	{
 		return $this->config->cache;
+	}
+
+
+	/**
+	 * Static mode - thumbnails are stored in a public directory and linked directly.
+	 */
+	public function isStatic(): bool
+	{
+		return $this->publicCacheUrlPath !== null;
+	}
+
+
+	/**
+	 * Absolute filesystem path to the public cache directory, with a trailing slash.
+	 */
+	public function getPublicCacheDir(): ?string
+	{
+		if ($this->config->publicCacheDir === null) {
+			return null;
+		}
+
+		return rtrim(FileSystem::normalizePath($this->config->publicCacheDir), '/') . '/';
+	}
+
+
+	/**
+	 * Public cache directory relative to wwwDir (e.g. "cache/ir/"), with a trailing slash.
+	 */
+	public function getPublicCacheUrlPath(): ?string
+	{
+		return $this->publicCacheUrlPath;
 	}
 
 
@@ -166,6 +205,23 @@ final class ResizerConfig
 	public function getSupportedFormats(): array
 	{
 		return $this->supportedFormats;
+	}
+
+
+	private function resolvePublicCacheUrlPath(string $wwwDir, string $publicCacheDir): string
+	{
+		$www = rtrim(FileSystem::normalizePath($wwwDir), '/') . '/';
+		$public = rtrim(FileSystem::normalizePath($publicCacheDir), '/') . '/';
+
+		if (!str_starts_with($public, $www) || $public === $www) {
+			throw new Exception(sprintf(
+				"Resizer: publicCacheDir '%s' must be a subdirectory of wwwDir '%s'.",
+				$publicCacheDir,
+				$wwwDir,
+			));
+		}
+
+		return substr($public, strlen($www));
 	}
 
 

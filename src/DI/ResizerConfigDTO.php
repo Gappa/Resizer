@@ -12,6 +12,12 @@ final class ResizerConfigDTO
 	public string $tempDir;
 	public string $cache = '/resizer/';
 
+	/**
+	 * Absolute path to a directory inside wwwDir. When set, thumbnails are stored there
+	 * and {rlink} points directly to the existing files, so they can be served statically.
+	 */
+	public ?string $publicCacheDir = null;
+
 	public bool $upgradeJpg2Webp = true;
 	public bool $upgradePng2Webp = true;
 	public bool $upgradeJpg2Avif = true;

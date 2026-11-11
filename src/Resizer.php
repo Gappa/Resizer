@@ -39,7 +39,8 @@ final class Resizer implements IResizer
 		private readonly OutputFormat $outputFormat,
 	)
 	{
-		$this->cacheDir = $this->config->getTempDir() . $this->config->getCache();
+		$this->cacheDir = $this->config->getPublicCacheDir()
+			?? $this->config->getTempDir() . $this->config->getCache();
 		FileSystem::createDir($this->cacheDir);
 
 		/** @var AbstractImagine $library */
@@ -55,8 +56,8 @@ final class Resizer implements IResizer
 	): string {
 		$sourceImagePath = $this->getSourceImagePath($path);
 
-		$thumbnailFileName = $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
-		$thumbnailPath = $this->getThumbnailDir($path) . $thumbnailFileName;
+		$thumbnailPath = $this->getThumbnailPath($path, $params, $format);
+		FileSystem::createDir(dirname($thumbnailPath));
 
 		$geometry = new Geometry($params);
 
@@ -77,7 +78,23 @@ final class Resizer implements IResizer
 				$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
 			}
 
-			$thumbnail->save($thumbnailPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
+			// Write to a temporary file first and rename it, so a partially written thumbnail is never served
+			// (in static mode the file may be served directly by the web server as soon as it exists).
+			// The temporary name keeps the extension, Imagine derives the output format from it.
+			$tempPath = dirname($thumbnailPath) . DIRECTORY_SEPARATOR
+				. '.tmp-' . bin2hex(random_bytes(6)) . '-' . basename($thumbnailPath);
+
+			try {
+				$thumbnail->save($tempPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
+				// plain rename() is atomic and replaces the target (FileSystem::rename() deletes it first)
+				if (!@rename($tempPath, $thumbnailPath)) {
+					throw new ImageNotFoundOrReadableException(sprintf("Unable to write thumbnail '%s'.", $thumbnailPath));
+				}
+			} finally {
+				if (is_file($tempPath)) {
+					@unlink($tempPath);
+				}
+			}
 		}
 
 		return $thumbnailPath;
@@ -101,11 +118,22 @@ final class Resizer implements IResizer
 	}
 
 
-	private function getThumbnailDir(string $path): string
+	/**
+	 * Path of the thumbnail in the cache directory. Does not check whether it exists.
+	 */
+	public function getThumbnailPath(
+		string $path,
+		?string $params,
+		?string $format = null,
+	): string {
+		return $this->cacheDir . $path . DIRECTORY_SEPARATOR
+			. $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
+	}
+
+
+	public function thumbnailExists(string $path): bool
 	{
-		$dir = $this->cacheDir . $path . DIRECTORY_SEPARATOR;
-		FileSystem::createDir($dir);
-		return $dir;
+		return is_file($path) && (bool) filesize($path);
 	}
 
 
@@ -136,11 +164,5 @@ final class Resizer implements IResizer
 		}
 
 		return $image;
-	}
-
-
-	private function thumbnailExists(string $path): bool
-	{
-		return is_file($path) && (bool) filesize($path);
 	}
 }

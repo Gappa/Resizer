@@ -27,14 +27,37 @@ final class OutputFormat
 
 	public function getOutputFormat(string $file, ?string $format = null): ?string
 	{
+		return $this->resolve($file, $format, $this->browserSupportsWebp, $this->browserSupportsAvif);
+	}
+
+
+	/**
+	 * Output format independent of the current request's Accept header - assumes the browser supports
+	 * both WEBP and AVIF, so the result depends only on the server support and the upgrade settings.
+	 * Used for static links, where the format has to be known when the link is generated.
+	 */
+	public function getStaticOutputFormat(string $file, ?string $format = null): string
+	{
+		return $this->resolve($file, $format, true, true);
+	}
+
+
+	private function resolve(
+		string $file,
+		?string $format,
+		bool $browserSupportsWebp,
+		bool $browserSupportsAvif,
+	): string {
 		if ($format === null) {
 			$suffix = $this->getFileFormat($file);
+			$canServeWebp = $this->config->isWebpSupportedByServer() && $browserSupportsWebp;
+			$canServeAvif = $this->config->isAvifSupportedByServer() && $browserSupportsAvif;
 
 			$format = match ($suffix) {
-				Resizer::FORMAT_SUFFIX_JPG => $this->getOutputFormatForJpg(),
-				Resizer::FORMAT_SUFFIX_PNG => $this->getOutputFormatForPng(),
-				Resizer::FORMAT_SUFFIX_WEBP => $this->getOutputFormatForWebp(),
-				Resizer::FORMAT_SUFFIX_AVIF => $this->getOutputFormatForAvif(),
+				Resizer::FORMAT_SUFFIX_JPG => $this->getOutputFormatForJpg($canServeWebp, $canServeAvif),
+				Resizer::FORMAT_SUFFIX_PNG => $this->getOutputFormatForPng($canServeWebp, $canServeAvif),
+				Resizer::FORMAT_SUFFIX_WEBP => $this->getOutputFormatForWebp($canServeWebp, $canServeAvif),
+				Resizer::FORMAT_SUFFIX_AVIF => $this->getOutputFormatForAvif($canServeWebp, $canServeAvif),
 				default => $suffix,
 			};
 		}
@@ -44,55 +67,43 @@ final class OutputFormat
 	}
 
 
-	private function getOutputFormatForWebp(): string
+	private function getOutputFormatForWebp(bool $canServeWebp, bool $canServeAvif): string
 	{
 		return match (true) {
-			$this->canServeWebp() => Resizer::FORMAT_SUFFIX_WEBP,
-			$this->canServeAvif() => Resizer::FORMAT_SUFFIX_AVIF,
+			$canServeWebp => Resizer::FORMAT_SUFFIX_WEBP,
+			$canServeAvif => Resizer::FORMAT_SUFFIX_AVIF,
 			default => Resizer::FORMAT_SUFFIX_JPG,
 		};
 	}
 
 
-	private function getOutputFormatForAvif(): string
+	private function getOutputFormatForAvif(bool $canServeWebp, bool $canServeAvif): string
 	{
 		return match (true) {
-			$this->canServeAvif() => Resizer::FORMAT_SUFFIX_AVIF,
-			$this->canServeWebp() => Resizer::FORMAT_SUFFIX_WEBP,
+			$canServeAvif => Resizer::FORMAT_SUFFIX_AVIF,
+			$canServeWebp => Resizer::FORMAT_SUFFIX_WEBP,
 			default => Resizer::FORMAT_SUFFIX_JPG,
 		};
 	}
 
 
-	private function getOutputFormatForJpg(): string
+	private function getOutputFormatForJpg(bool $canServeWebp, bool $canServeAvif): string
 	{
 		return match (true) {
-			$this->canServeAvif() && $this->config->canUpgradeJpg2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
-			$this->canServeWebp() && $this->config->canUpgradeJpg2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
+			$canServeAvif && $this->config->canUpgradeJpg2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
+			$canServeWebp && $this->config->canUpgradeJpg2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
 			default => Resizer::FORMAT_SUFFIX_JPG,
 		};
 	}
 
 
-	private function getOutputFormatForPng(): string
+	private function getOutputFormatForPng(bool $canServeWebp, bool $canServeAvif): string
 	{
 		return match (true) {
-			$this->canServeAvif() && $this->config->canUpgradePng2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
-			$this->canServeWebp() && $this->config->canUpgradePng2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
+			$canServeAvif && $this->config->canUpgradePng2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
+			$canServeWebp && $this->config->canUpgradePng2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
 			default => Resizer::FORMAT_SUFFIX_PNG,
 		};
-	}
-
-
-	private function canServeWebp(): bool
-	{
-		return $this->config->isWebpSupportedByServer() && $this->browserSupportsWebp;
-	}
-
-
-	private function canServeAvif(): bool
-	{
-		return $this->config->isAvifSupportedByServer() && $this->browserSupportsAvif;
 	}
 
 
