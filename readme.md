@@ -183,9 +183,29 @@ Notes:
 - `ResizerLinkGenerator::restoreDynamicUrls($html)` is the reverse (static URL → `/ir/<params>/<file>`), use it
   before storing edited HTML (e.g. a rich text editor showing static URLs), so the content doesn't depend on the public cache.
 - Thumbnails are written to a temporary file and renamed, a partially written file is never served.
-- The public directory is never cleaned automatically, delete its content when needed (e.g. on deploy).
+- The public directory is never cleaned automatically, use `resizer:clean` (see Cleaning the cache).
 - A changed source image is regenerated on the next `/ir/` request, but an existing static file keeps being served
-  until the public cache is purged.
+  until it is deleted - `resizer:clean` deletes such stale thumbnails.
+
+# Cleaning the cache
+
+Thumbnails are never deleted automatically. `Nelson\Resizer\CacheCleaner::clean()` deletes:
+
+- orphaned thumbnails - the source image does not exist anymore,
+- stale thumbnails - the source image is newer (in static mode the old file would be served until deleted),
+- optionally thumbnails generated more than `maxAge` seconds ago (they are generated again on demand),
+- leftover temporary and lock files of crashed processes, and empty directories.
+
+Only files named like thumbnails (`<params>.<format>`) in the cache directory are deleted, other files are kept.
+With symfony/console (e.g. [contributte/console](https://github.com/contributte/console)) the command is registered:
+
+``` bash
+php bin/console resizer:clean --dry-run       # only report
+php bin/console resizer:clean --max-age=90    # also thumbnails older than 90 days
+php bin/console resizer:clean -v              # list the deleted files
+```
+
+Run it e.g. daily by cron and after deploys that change or remove images.
 
 # Sending files by the web server
 

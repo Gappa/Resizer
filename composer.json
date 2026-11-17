@@ -19,13 +19,15 @@
 		"phpstan/phpstan-nette": "^2.0.15",
 		"roave/security-advisories": "dev-latest",
 		"phpunit/phpunit": "^13.4",
+		"symfony/console": "^7.4 || ^8.0",
 		"tracy/tracy": "^2.12"
 	},
 	"suggest": {
 		"ext-imagick": "Imagick library (recommended, required for JPEG XL)",
 		"ext-gd": "GD library",
 		"ext-gmagick": "Gmagick library",
-		"ext-exif": "EXIF orientation of photos with GD and Gmagick (Imagick reads it on its own)"
+		"ext-exif": "EXIF orientation of photos with GD and Gmagick (Imagick reads it on its own)",
+		"contributte/console": "resizer:clean command (any symfony/console integration works)"
 	},
 	"autoload": {
 		"psr-4": {

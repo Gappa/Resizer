@@ -6,6 +6,8 @@ namespace Nelson\Resizer\DI;
 use Exception;
 use Gmagick;
 use Imagick;
+use Nelson\Resizer\CacheCleaner;
+use Nelson\Resizer\Console\CleanCacheCommand;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
 use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
@@ -20,6 +22,7 @@ use Nette\DI\Definitions\ServiceDefinition;
 use Nette\DI\Definitions\Statement;
 use Nette\Schema\Expect;
 use Nette\Schema\Schema;
+use Symfony\Component\Console\Command\Command;
 
 final class ResizerExtension extends CompilerExtension
 {
@@ -77,6 +80,16 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('linkGenerator'))
 			->setFactory(ResizerLinkGenerator::class);
+
+		$builder->addDefinition($this->prefix('cacheCleaner'))
+			->setFactory(CacheCleaner::class);
+
+		// found by contributte/console (by type), the tag enables lazy loading
+		if (class_exists(Command::class)) {
+			$builder->addDefinition($this->prefix('command.clean'))
+				->setFactory(CleanCacheCommand::class)
+				->addTag('console.command', CleanCacheCommand::NAME);
+		}
 
 		$builder->addDefinition(null)->setType(ResizePresenter::class);
 	}
