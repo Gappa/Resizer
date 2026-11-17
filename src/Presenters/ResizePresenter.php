@@ -11,6 +11,7 @@ use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
 use Nette\Http\Context;
 use Nette\Http\IResponse;
+use Nette\InvalidStateException;
 
 final class ResizePresenter extends Presenter
 {
@@ -26,7 +27,11 @@ final class ResizePresenter extends Presenter
 		parent::startup();
 
 		// image responses do not need the session, release its lock as soon as possible
-		$session = $this->getSession();
+		try {
+			$session = $this->getSession();
+		} catch (InvalidStateException) {
+			return; // the application does not use sessions
+		}
 
 		if ($session->isStarted()) {
 			$session->close();
@@ -53,8 +58,9 @@ final class ResizePresenter extends Presenter
 
 		// without an explicit format the output depends on the Accept header (WEBP/AVIF negotiation),
 		// shared caches (CDN, proxies) must not serve one variant to all browsers
+		// (added, not set - Presenter::run() has already sent "Vary: X-Requested-With")
 		if ($format === null) {
-			$httpResponse->setHeader('Vary', 'Accept');
+			$httpResponse->addHeader('Vary', 'Accept');
 		}
 
 		$httpResponse->setExpiration('1 year');
