@@ -13,6 +13,7 @@ use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\SecurityException;
+use Nette\IOException;
 use Nette\Utils\FileSystem;
 use RuntimeException;
 
@@ -89,6 +90,26 @@ final class Resizer implements IResizer
 			return $thumbnailPath;
 		}
 
+		// Concurrent requests for the same thumbnail (a page full of new images, CDN fetching in parallel)
+		// would all encode it - only one does, the others wait and use its result.
+		$lock = $this->acquireLock($thumbnailPath);
+
+		try {
+			clearstatcache(true, $thumbnailPath);
+
+			if (!$this->isThumbnailFresh($thumbnailPath, $sourceImagePath)) {
+				$this->generate($sourceImagePath, $thumbnailPath, $geometry);
+			}
+		} finally {
+			$this->releaseLock($lock);
+		}
+
+		return $thumbnailPath;
+	}
+
+
+	private function generate(string $sourceImagePath, string $thumbnailPath, Geometry $geometry): void
+	{
 		try {
 			$thumbnail = $this->processImage($sourceImagePath, $geometry);
 		} catch (ImagineRuntimeException) {
@@ -100,12 +121,18 @@ final class Resizer implements IResizer
 			$thumbnail->strip();
 		}
 
+		$format = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
+
 		// progressive JPEG; PNG interlacing (Adam7) makes files bigger, WEBP/AVIF/JXL ignore it
-		if (
-			$this->config->isInterlace()
-			&& in_array(strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION)), self::FORMAT_SUFFIXES_JPG, true)
-		) {
+		if ($this->config->isInterlace() && in_array($format, self::FORMAT_SUFFIXES_JPG, true)) {
 			$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
+		}
+
+		// encoder speed/effort, Imagine has no options for it
+		if ($thumbnail instanceof ImagickImage) {
+			foreach ($this->config->getImagickEncoderOptions($format) as $option => $value) {
+				$thumbnail->getImagick()->setOption($option, $value);
+			}
 		}
 
 		FileSystem::createDir(dirname($thumbnailPath));
@@ -127,8 +154,53 @@ final class Resizer implements IResizer
 				@unlink($tempPath);
 			}
 		}
+	}
 
-		return $thumbnailPath;
+
+	/**
+	 * Exclusive lock of the thumbnail, in tempDir (the cache dir may be public). Null when the lock file
+	 * can't be created - the thumbnail is generated without it then (the write is atomic anyway).
+	 * @return array{resource, string}|null
+	 */
+	private function acquireLock(string $thumbnailPath): ?array
+	{
+		$dir = rtrim($this->config->getTempDir(), '/\\') . '/resizer-locks';
+		$path = $dir . '/' . md5($thumbnailPath) . '.lock';
+
+		try {
+			FileSystem::createDir($dir);
+		} catch (IOException) {
+			return null;
+		}
+
+		$handle = @fopen($path, 'c');
+
+		if ($handle === false) {
+			return null;
+		}
+
+		if (!flock($handle, LOCK_EX)) {
+			fclose($handle);
+			return null;
+		}
+
+		return [$handle, $path];
+	}
+
+
+	/** @param array{resource, string}|null $lock */
+	private function releaseLock(?array $lock): void
+	{
+		if ($lock === null) {
+			return;
+		}
+
+		[$handle, $path] = $lock;
+		// removed while still locked: the waiting requests hold their handles and find the thumbnail done,
+		// a race with a new request can at worst encode the thumbnail twice, never corrupt it
+		@unlink($path);
+		flock($handle, LOCK_UN);
+		fclose($handle);
 	}
 
 

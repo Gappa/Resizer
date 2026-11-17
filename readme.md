@@ -34,6 +34,9 @@
 		qualityJpeg: 70 # 0 - 100
 		qualityJxl: 70 # 0 - 100 (Imagine clamps it to 9 - 99)
 		compressionPng: 9 # 0 - 9
+		avifSpeed: null # 0 - 10, higher = faster encoding, slightly bigger files (Imagick only, null = library default)
+		jxlEffort: null # 1 - 9, lower = faster encoding, slightly bigger files (Imagick only, null = 7)
+		webpMethod: null # 0 - 6, higher = slower encoding, smaller files (Imagick only, null = 4)
 		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
 		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
 		secret: null # at least 32 characters, enables signed URLs, see below
@@ -60,6 +63,15 @@ Without an explicit format the output format is negotiated by the `Accept` heade
 A format missing in `formatPriority` is never used for upgrades or fallbacks (an explicit format still works).
 AVIF is last by default, its encoding is slow - with WEBP before AVIF, JPEG/PNG are practically never upgraded
 to AVIF (every browser with AVIF support accepts WEBP). Use `[avif, webp]` for the order of 8.x.
+
+## Encoding speed
+
+AVIF encoding is slow with the default settings. With Imagick, `avifSpeed: 8` typically makes it several times faster
+for a few percent bigger files - measure on your images, then AVIF may deserve a better place in `formatPriority`.
+`jxlEffort` and `webpMethod` work the same way. GD and Gmagick use their defaults.
+
+Concurrent requests for the same missing thumbnail (a page full of new images, a CDN fetching in parallel) encode it
+only once: the others wait for a lock (in `tempDir/resizer-locks`) and use the result.
 
 ## JPEG XL
 

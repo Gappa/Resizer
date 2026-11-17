@@ -55,6 +55,19 @@ final class ResizerConfigDTO
 	public int $compressionPng = 9;
 
 	/**
+	 * Encoder speed/effort, Imagick only (Imagine has no such options, GD uses its defaults).
+	 * Null = the library default.
+	 * @var int<0, 10>|null AVIF speed, higher = faster and slightly bigger (ImageMagick "heic:speed")
+	 */
+	public ?int $avifSpeed = null;
+
+	/** @var int<1, 9>|null JPEG XL effort, lower = faster and slightly bigger (ImageMagick "jxl:effort", default 7) */
+	public ?int $jxlEffort = null;
+
+	/** @var int<0, 6>|null WEBP method, higher = slower and smaller (ImageMagick "webp:method", default 4) */
+	public ?int $webpMethod = null;
+
+	/**
 	 * Maximum requested width/height. The output area is limited to maxWidth * maxHeight as well
 	 * (a crop may need a larger intermediate image). Protects against DoS by huge thumbnails.
 	 * @var positive-int

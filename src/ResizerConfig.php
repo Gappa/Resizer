@@ -242,6 +242,23 @@ final class ResizerConfig
 	}
 
 
+	/**
+	 * ImageMagick options for the encoder of the format (speed/effort), empty for the library defaults.
+	 * @return array<string, string>
+	 */
+	public function getImagickEncoderOptions(string $format): array
+	{
+		$options = match ($format) {
+			Resizer::FORMAT_SUFFIX_AVIF => ['heic:speed' => $this->config->avifSpeed],
+			Resizer::FORMAT_SUFFIX_JXL => ['jxl:effort' => $this->config->jxlEffort],
+			Resizer::FORMAT_SUFFIX_WEBP => ['webp:method' => $this->config->webpMethod],
+			default => [],
+		};
+
+		return array_map(strval(...), array_filter($options, static fn(?int $value): bool => $value !== null));
+	}
+
+
 	/** @return positive-int */
 	public function getMaxWidth(): int
 	{

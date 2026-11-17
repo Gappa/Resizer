@@ -39,6 +39,9 @@ final class ResizerExtension extends CompilerExtension
 			'qualityJpeg' => Expect::int(70)->min(0)->max(100),
 			'qualityJxl' => Expect::int(70)->min(0)->max(100),
 			'compressionPng' => Expect::int(9)->min(0)->max(9),
+			'avifSpeed' => Expect::anyOf(Expect::int()->min(0)->max(10), null)->default(null),
+			'jxlEffort' => Expect::anyOf(Expect::int()->min(1)->max(9), null)->default(null),
+			'webpMethod' => Expect::anyOf(Expect::int()->min(0)->max(6), null)->default(null),
 			'formatPriority' => Expect::listOf(Expect::anyOf('jxl', 'webp', 'avif'))
 				->default(['jxl', 'webp', 'avif'])
 				->mergeDefaults(false)
