@@ -269,9 +269,10 @@ final class Resizer implements IResizer
 	 */
 	private function openImage(string $path, Geometry $geometry): ImageInterface
 	{
-		$hint = $this->imagine instanceof ImagickImagine ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
+		$imagine = $this->imagine;
+		$hint = $imagine instanceof ImagickImagine ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
 
-		if ($hint !== null && $this->imagine instanceof ImagickImagine) {
+		if ($imagine instanceof ImagickImagine && $hint !== null) {
 			try {
 				$imagick = new Imagick;
 				$imagick->setOption('jpeg:size', $hint . 'x' . $hint);
@@ -279,13 +280,13 @@ final class Resizer implements IResizer
 
 				// the same as Imagine\Imagick\Imagine::open(), its palette detection is private
 				$palette = (fn(Imagick $imagick): PaletteInterface => $this->createPalette($imagick))
-					->call($this->imagine, $imagick);
+					->call($imagine, $imagick);
 
-				return $this->imagine->getClassFactory()->createImage(
+				return $imagine->getClassFactory()->createImage(
 					ClassFactoryInterface::HANDLE_IMAGICK,
 					$imagick,
 					$palette,
-					$this->imagine->getMetadataReader()->readFile($path),
+					$imagine->getMetadataReader()->readFile($path),
 				);
 			} catch (ImagickException | Error) {
 				// Imagine opens it again and reports the error consistently
@@ -293,7 +294,7 @@ final class Resizer implements IResizer
 			}
 		}
 
-		return $this->imagine->open($path);
+		return $imagine->open($path);
 	}
 
 
