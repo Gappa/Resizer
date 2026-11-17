@@ -446,7 +446,9 @@ class ResizerTest extends TestCase
 		}
 
 		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-webp.gif');
-		$frames = $this->readFrames($this->createImagickResizer()->process('_public/animated-webp.gif', '50x', 'webp'));
+		// the DI extension detects the server support, here it is set by hand
+		$resizer = $this->createImagickResizer(['isWebpSupportedByServer' => true]);
+		$frames = $this->readFrames($resizer->process('_public/animated-webp.gif', '50x', 'webp'));
 
 		$this->assertCount(3, $frames);
 		$this->assertColor('blue', $frames[2], 10, 10);
