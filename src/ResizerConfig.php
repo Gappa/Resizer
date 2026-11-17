@@ -18,6 +18,8 @@ final class ResizerConfig
 	];
 
 	public const int MIN_SECRET_LENGTH = 32;
+	public const string SENDFILE_X_SENDFILE = 'x-sendfile';
+	public const string SENDFILE_X_ACCEL_REDIRECT = 'x-accel-redirect';
 
 	/** Public cache directory relative to wwwDir, with a trailing slash; null when static mode is off */
 	private ?string $publicCacheUrlPath = null;
@@ -33,6 +35,17 @@ final class ResizerConfig
 
 		if ($config->secret !== null && strlen($config->secret) < self::MIN_SECRET_LENGTH) {
 			throw new Exception(sprintf('Resizer: secret must be at least %d characters long.', self::MIN_SECRET_LENGTH));
+		}
+
+		if (!in_array($config->sendfile, [null, self::SENDFILE_X_SENDFILE, self::SENDFILE_X_ACCEL_REDIRECT], true)) {
+			throw new Exception(sprintf("Resizer: sendfile must be null, '%s' or '%s'.", self::SENDFILE_X_SENDFILE, self::SENDFILE_X_ACCEL_REDIRECT));
+		}
+
+		if (
+			$config->sendfile === self::SENDFILE_X_ACCEL_REDIRECT
+			&& !str_starts_with((string) $config->sendfileInternalUri, '/')
+		) {
+			throw new Exception("Resizer: sendfile 'x-accel-redirect' needs sendfileInternalUri, an internal nginx location starting with '/', e.g. '/_resizer/'.");
 		}
 
 		if ($config->isWebpSupportedByServer) {
@@ -77,6 +90,31 @@ final class ResizerConfig
 	public function getCache(): string
 	{
 		return $this->config->cache;
+	}
+
+
+	/**
+	 * Directory of the thumbnails (the public one in static mode), with a trailing slash.
+	 */
+	public function getCacheDir(): string
+	{
+		return $this->getPublicCacheDir() ?? $this->config->tempDir . $this->config->cache;
+	}
+
+
+	/** One of the SENDFILE_* constants, null when PHP sends the file */
+	public function getSendfile(): ?string
+	{
+		return $this->config->sendfile;
+	}
+
+
+	/**
+	 * Internal nginx URI of the cache directory for X-Accel-Redirect, with a trailing slash.
+	 */
+	public function getSendfileInternalUri(): ?string
+	{
+		return $this->config->sendfileInternalUri === null ? null : rtrim($this->config->sendfileInternalUri, '/') . '/';
 	}
 
 

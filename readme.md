@@ -40,6 +40,8 @@
 		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
 		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
 		allowUpscale: false # thumbnails are never bigger than the source (forced dimensions "!" excepted), see below
+		sendfile: null # x-sendfile | x-accel-redirect - the web server sends the files, see below
+		sendfileInternalUri: null # x-accel-redirect: internal nginx location of the cache directory, e.g. /_resizer/
 		secret: null # at least 32 characters, enables signed URLs, see below
 		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
@@ -185,6 +187,39 @@ Notes:
 - A changed source image is regenerated on the next `/ir/` request, but an existing static file keeps being served
   until the public cache is purged.
 
+# Sending files by the web server
+
+By default the resize presenter sends the thumbnail by PHP. With `sendfile` the web server sends it, PHP only
+sets the headers (`Content-Type`, `Cache-Control`, `ETag`, ...) - the PHP worker is free immediately.
+A `304 Not Modified` is still answered by PHP.
+
+Apache with mod_xsendfile (or lighttpd), an absolute path is sent:
+
+``` neon
+resizer:
+	sendfile: x-sendfile
+```
+
+``` apache
+XSendFile On
+XSendFilePath /path/to/temp/resizer   # the cache directory (publicCacheDir in static mode)
+```
+
+nginx, an internal location aliased to the cache directory:
+
+``` neon
+resizer:
+	sendfile: x-accel-redirect
+	sendfileInternalUri: /_resizer/
+```
+
+``` nginx
+location /_resizer/ {
+	internal;
+	alias /path/to/temp/resizer/;   # the cache directory (publicCacheDir in static mode)
+}
+```
+
 # Signed URLs
 
 With `secret` set, every `/ir/` URL must carry a signature (`?s=...`, HMAC-SHA256 of the file and params),
@@ -274,3 +309,4 @@ In PHP: `ResizerLinkGenerator::srcset()`, `picture()` and `getDimensions()`.
 - `ResizePresenter` sends the Content-Type by the extension of the thumbnail (libmagic may not know JPEG XL).
 - `IResizer::getOutputDimensions()` was added (implement it in custom resizers).
 - New `UrlSigner` service, a new constructor argument of `ResizerLinkGenerator` and `ResizePresenter` (autowired in DI).
+  `ResizePresenter` also takes `ResizerConfig` (sendfile).

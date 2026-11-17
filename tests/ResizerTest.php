@@ -106,6 +106,7 @@ class ResizerTest extends TestCase
 		yield 'parent at end' => ['fixtures/..'];
 		yield 'backslash' => ['fixtures\\..\\..\\haxxor.png'];
 		yield 'null byte' => ["fixtures/test.png\0.png"];
+		yield 'line break' => ["fixtures/test.png\nX-Injected: 1"];
 		yield 'empty' => [''];
 	}
 

@@ -7,7 +7,10 @@ use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\IResizer;
 use Nelson\Resizer\Resizer;
+use Nelson\Resizer\ResizerConfig;
+use Nelson\Resizer\Responses\SendfileResponse;
 use Nelson\Resizer\UrlSigner;
+use Nette\Application\Response;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
@@ -20,6 +23,7 @@ final class ResizePresenter extends Presenter
 	public function __construct(
 		private readonly IResizer $resizer,
 		private readonly UrlSigner $urlSigner,
+		private readonly ResizerConfig $config,
 	) {
 		parent::__construct();
 	}
@@ -81,14 +85,36 @@ final class ResizePresenter extends Presenter
 			$this->sendResponse(new TextResponse(''));
 		}
 
-		$extension = pathinfo($image, PATHINFO_EXTENSION);
+		$name = pathinfo($file, PATHINFO_FILENAME) . '.' . pathinfo($image, PATHINFO_EXTENSION);
+		$this->sendResponse($this->createFileResponse($image, $name, $this->getMimeType($image)));
+	}
 
-		$this->sendResponse(new FileResponse(
-			$image,
-			pathinfo($file, PATHINFO_FILENAME) . '.' . $extension,
-			$this->getMimeType($image),
-			forceDownload: false,
-		));
+
+	/**
+	 * The web server sends the file when sendfile is configured, otherwise PHP.
+	 */
+	private function createFileResponse(string $image, string $name, string $contentType): Response
+	{
+		$cacheDir = $this->config->getCacheDir();
+		$internalUri = $this->config->getSendfileInternalUri();
+
+		return match (true) {
+			$this->config->getSendfile() === ResizerConfig::SENDFILE_X_SENDFILE => new SendfileResponse(
+				'X-Sendfile',
+				realpath($image) ?: $image, // without "..", mod_xsendfile checks the path against XSendFilePath
+				$contentType,
+				$name,
+			),
+			$this->config->getSendfile() === ResizerConfig::SENDFILE_X_ACCEL_REDIRECT
+			&& $internalUri !== null
+			&& str_starts_with($image, $cacheDir) => new SendfileResponse(
+				'X-Accel-Redirect',
+				$internalUri . implode('/', array_map(rawurlencode(...), explode('/', substr($image, strlen($cacheDir))))),
+				$contentType,
+				$name,
+			),
+			default => new FileResponse($image, $name, $contentType, forceDownload: false),
+		};
 	}
 
 

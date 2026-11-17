@@ -74,8 +74,7 @@ final class Resizer implements IResizer
 		private readonly ResizerConfig $config,
 		private readonly OutputFormat $outputFormat,
 	) {
-		$this->cacheDir = $this->config->getPublicCacheDir()
-			?? $this->config->getTempDir() . $this->config->getCache();
+		$this->cacheDir = $this->config->getCacheDir();
 		FileSystem::createDir($this->cacheDir);
 
 		/** @var class-string<AbstractImagine> $library */
@@ -397,14 +396,14 @@ final class Resizer implements IResizer
 
 
 	/**
-	 * Refuses traversal ("..") segments, NUL bytes and backslashes (a path separator on Windows).
+	 * Refuses traversal ("..") segments, control characters (NUL, line breaks) and backslashes (a path separator on Windows).
 	 * Symlinks inside wwwDir are intentionally allowed (e.g. shared storage in deployments).
 	 */
 	private function assertSafePath(string $path): void
 	{
 		if (
 			$path === ''
-			|| str_contains($path, "\0")
+			|| preg_match('~[\x00-\x1F\x7F]~', $path) === 1 // NUL, line breaks (the path goes to headers with sendfile)
 			|| str_contains($path, '\\')
 			|| in_array('..', explode('/', $path), true)
 		) {

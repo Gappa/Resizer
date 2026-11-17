@@ -85,6 +85,17 @@ final class ResizerConfigDTO
 	public bool $allowUpscale = false;
 
 	/**
+	 * The web server sends the thumbnail file instead of PHP: null (PHP), 'x-sendfile' (Apache mod_xsendfile,
+	 * lighttpd - an absolute path), 'x-accel-redirect' (nginx - an internal URI, see $sendfileInternalUri).
+	 */
+	public ?string $sendfile = null;
+
+	/**
+	 * x-accel-redirect: URI of an internal nginx location aliased to the cache directory, e.g. "/_resizer/".
+	 */
+	public ?string $sendfileInternalUri = null;
+
+	/**
 	 * Secret key for signing URLs (at least 32 characters). When set, the resize presenter
 	 * refuses requests without a valid signature. Null disables signing.
 	 */

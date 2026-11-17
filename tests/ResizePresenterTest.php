@@ -8,6 +8,7 @@ use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
+use Nelson\Resizer\Responses\SendfileResponse;
 use Nelson\Resizer\UrlSigner;
 use Nette\Application\BadRequestException;
 use Nette\Application\Request as AppRequest;
@@ -195,6 +196,71 @@ class ResizePresenterTest extends TestCase
 	}
 
 
+	public function testXSendfile(): void
+	{
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], sendfile: 'x-sendfile');
+
+		$this->assertInstanceOf(SendfileResponse::class, $response);
+		$this->assertSame('X-Sendfile', $response->getHeader());
+		// absolute path without ".." (tempDir in the test contains it)
+		$this->assertSame(realpath(self::TEMP_DIR) . '/resizer/fixtures/test.png/x50.png', $response->getValue());
+		$this->assertFileExists($response->getValue());
+
+		$response->send(new Request(new UrlScript), $this->httpResponse);
+		$this->assertSame('image/png', $this->httpResponse->getHeader('Content-Type'));
+		$this->assertSame($response->getValue(), $this->httpResponse->getHeader('X-Sendfile'));
+		$this->assertSame('inline; filename="test.png"; filename*=utf-8\'\'test.png', $this->httpResponse->getHeader('Content-Disposition'));
+		// cache headers stay, the web server passes them on
+		$this->assertNotNull($this->httpResponse->getHeader('ETag'));
+		$this->assertNotNull($this->httpResponse->getHeader('Cache-Control'));
+	}
+
+
+	public function testXAccelRedirect(): void
+	{
+		$response = $this->runPresenter(
+			['file' => self::IMAGE, 'params' => 'x50'],
+			sendfile: 'x-accel-redirect',
+			sendfileInternalUri: '/_resizer', // the trailing slash is added
+		);
+
+		$this->assertInstanceOf(SendfileResponse::class, $response);
+		$this->assertSame('X-Accel-Redirect', $response->getHeader());
+		$this->assertSame('/_resizer/fixtures/test.png/x50.png', $response->getValue());
+	}
+
+
+	public function testSendfileNotModified(): void
+	{
+		$this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], sendfile: 'x-sendfile');
+		$etag = (string) $this->httpResponse->getHeader('ETag');
+
+		$this->httpResponse = new RecordingHttpResponse;
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], headers: ['If-None-Match' => $etag], sendfile: 'x-sendfile');
+
+		// 304 is answered by PHP, the web server is not involved
+		$this->assertInstanceOf(TextResponse::class, $response);
+		$this->assertSame(IResponse::S304_NotModified, $this->httpResponse->getCode());
+	}
+
+
+	/** @return iterable<string, array{string, string|null}> */
+	public static function provideInvalidSendfileConfig(): iterable
+	{
+		yield 'unknown mode' => ['sendfile', null];
+		yield 'x-accel-redirect without uri' => ['x-accel-redirect', null];
+		yield 'x-accel-redirect with relative uri' => ['x-accel-redirect', '_resizer/'];
+	}
+
+
+	#[DataProvider('provideInvalidSendfileConfig')]
+	public function testInvalidSendfileConfig(string $sendfile, ?string $internalUri): void
+	{
+		$this->expectException(\Exception::class);
+		$this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], sendfile: $sendfile, sendfileInternalUri: $internalUri);
+	}
+
+
 	private function createSigner(): UrlSigner
 	{
 		$config = new ResizerConfigDTO;
@@ -232,8 +298,14 @@ class ResizePresenterTest extends TestCase
 	 * @param array<string, string> $params
 	 * @param array<string, string> $headers
 	 */
-	private function runPresenter(array $params, array $headers = [], bool $webp = false, ?string $secret = null): Response
-	{
+	private function runPresenter(
+		array $params,
+		array $headers = [],
+		bool $webp = false,
+		?string $secret = null,
+		?string $sendfile = null,
+		?string $sendfileInternalUri = null,
+	): Response {
 		$httpRequest = new Request(
 			new UrlScript('https://example.com/ir/x50/fixtures/test.png', '/index.php'),
 			headers: $headers,
@@ -245,11 +317,14 @@ class ResizePresenterTest extends TestCase
 		$config->library = 'Gd';
 		$config->isWebpSupportedByServer = $webp;
 		$config->secret = $secret;
+		$config->sendfile = $sendfile;
+		$config->sendfileInternalUri = $sendfileInternalUri;
 		$resizerConfig = new ResizerConfig($config);
 
 		$presenter = new ResizePresenter(
 			new Resizer($resizerConfig, new OutputFormat($httpRequest, $resizerConfig)),
 			new UrlSigner($resizerConfig),
+			$resizerConfig,
 		);
 		$presenter->injectPrimary($httpRequest, $this->httpResponse);
 		$presenter->autoCanonicalize = false; // no router in the test
