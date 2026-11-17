@@ -12,6 +12,7 @@ use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
 use Nelson\Resizer\ResizerLinkGenerator;
+use Nelson\Resizer\UrlSigner;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\FactoryDefinition;
@@ -60,6 +61,9 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class);
+
+		$builder->addDefinition($this->prefix('urlSigner'))
+			->setFactory(UrlSigner::class);
 
 		$builder->addDefinition($this->prefix('linkGenerator'))
 			->setFactory(ResizerLinkGenerator::class);

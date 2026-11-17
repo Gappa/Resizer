@@ -17,6 +17,8 @@ final class ResizerConfig
 		'png',
 	];
 
+	public const int MIN_SECRET_LENGTH = 32;
+
 	/** Public cache directory relative to wwwDir, with a trailing slash; null when static mode is off */
 	private ?string $publicCacheUrlPath = null;
 
@@ -27,6 +29,10 @@ final class ResizerConfig
 	{
 		if ($config->publicCacheDir !== null) {
 			$this->publicCacheUrlPath = $this->resolvePublicCacheUrlPath($config->wwwDir, $config->publicCacheDir);
+		}
+
+		if ($config->secret !== null && strlen($config->secret) < self::MIN_SECRET_LENGTH) {
+			throw new Exception(sprintf('Resizer: secret must be at least %d characters long.', self::MIN_SECRET_LENGTH));
 		}
 
 		if ($config->isWebpSupportedByServer) {
@@ -182,6 +188,13 @@ final class ResizerConfig
 	public function getMaxHeight(): int
 	{
 		return $this->config->maxHeight;
+	}
+
+
+	/** Secret for signing URLs, null when signing is disabled */
+	public function getSecret(): ?string
+	{
+		return $this->config->secret;
 	}
 
 

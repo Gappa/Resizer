@@ -325,6 +325,135 @@ class ResizerLinkGeneratorTest extends TestCase
 	}
 
 
+	public function testSignedLinkForPhpCode(): void
+	{
+		[$generator] = $this->create(null, secret: UrlSignerTest::SECRET);
+		$signature = $this->sign(self::IMAGE, 'c100xc100');
+
+		$control = $this->createMock(Control::class);
+		$control->expects($this->once())
+			->method('link')
+			->with(':Resizer:Resize:', [self::IMAGE, 'c100xc100', null, $signature])
+			->willReturn('/ir/c100xc100/fixtures/test.png?s=' . $signature);
+
+		$this->assertTrue($generator->isSigned());
+		$this->assertSame(
+			'/ir/c100xc100/fixtures/test.png?s=' . $signature,
+			$generator->link($control, self::IMAGE, 'c100xc100'),
+		);
+	}
+
+
+	public function testSignedLatteWithoutStaticMode(): void
+	{
+		[$generator] = $this->create(null, secret: UrlSignerTest::SECRET);
+		$signature = $this->sign(self::IMAGE, 'c100xc100');
+
+		$control = $this->createMock(Control::class);
+		$control->expects($this->once())
+			->method('link')
+			->with(':Resizer:Resize:', [self::IMAGE, 'c100xc100', null, $signature])
+			->willReturn('/ir/c100xc100/fixtures/test.png?s=' . $signature);
+
+		$this->assertSame(
+			'/ir/c100xc100/fixtures/test.png?s=' . $signature,
+			$this->render($generator, $control, "{rlink 'fixtures/test.png', 'c100xc100'}"),
+		);
+	}
+
+
+	public function testSignedLatteWithLinkGenerator(): void
+	{
+		[$generator] = $this->create(null, secret: UrlSignerTest::SECRET);
+
+		$router = new RouteList;
+		$router->withModule('Resizer')->addRoute('ir/<params=auto>/<file .+>', ['presenter' => 'Resize', 'action' => 'default']);
+		$presenterFactory = new PresenterFactory;
+		$presenterFactory->setMapping(['Resizer' => 'Nelson\Resizer\Presenters\*Presenter']);
+		$linkGenerator = new LinkGenerator($router, new UrlScript('https://example.com/web/index.php', '/web/index.php'), $presenterFactory);
+
+		$latte = new Engine;
+		$latte->setLoader(new StringLoader);
+		$latte->addExtension(new ResizerExtension($generator));
+		$latte->addProvider('uiControl', $linkGenerator);
+
+		// real routing: the signature ends up in the query string
+		$this->assertSame(
+			'https://example.com/web/ir/300x/fixtures/test.png?s=' . $this->sign(self::IMAGE, '300x'),
+			$latte->renderToString("{rlink 'fixtures/test.png', '300x'}"),
+		);
+	}
+
+
+	public function testRewriteHtmlSignsUrlsWithoutStaticMode(): void
+	{
+		[$generator] = $this->create(null, secret: UrlSignerTest::SECRET);
+		$sig300 = $this->sign(self::IMAGE, '300x');
+		$sigAuto = $this->sign('a b.png', null);
+
+		$this->assertSame(
+			'<img src="/web/ir/300x/fixtures/test.png?s=' . $sig300 . '">'
+			. '<img src="/web/ir/300x/fixtures/test.png?format=png&amp;s=' . $sig300 . '">'
+			// a stale or forged signature is replaced
+			. '<img src="/web/ir/300x/fixtures/test.png?s=' . $sig300 . '">'
+			. '<img src="/web/ir/auto/a%20b.png?s=' . $sigAuto . '">'
+			// other query parameters: left as they are
+			. '<img src="/web/ir/300x/fixtures/test.png?foo=1">',
+			$generator->rewriteHtml(
+				'<img src="/web/ir/300x/fixtures/test.png">'
+				. '<img src="/web/ir/300x/fixtures/test.png?format=png">'
+				. '<img src="/web/ir/300x/fixtures/test.png?s=forged">'
+				. '<img src="/web/ir/auto/a%20b.png">'
+				. '<img src="/web/ir/300x/fixtures/test.png?foo=1">',
+			),
+		);
+	}
+
+
+	public function testRewriteHtmlSignedUrlIsStable(): void
+	{
+		[$generator] = $this->create(null, secret: UrlSignerTest::SECRET);
+		$html = '<img src="/web/ir/300x/fixtures/test.png?format=png&amp;s=' . $this->sign(self::IMAGE, '300x') . '">';
+
+		$this->assertSame($html, $generator->rewriteHtml($html));
+	}
+
+
+	public function testRewriteHtmlSignedStaticMode(): void
+	{
+		[$generator, $resizer] = $this->create(self::PUBLIC_DIR, webp: true, secret: UrlSignerTest::SECRET);
+		$resizer->process(self::IMAGE, 'x100', 'webp');
+
+		$this->assertSame(
+			// existing thumbnail: static URL, the signature is dropped
+			'<img src="/web/_public/ir/fixtures/test.png/x100.webp">'
+			// missing one: format filled in and signed
+			. '<img src="/web/ir/300x/fixtures/test.png?format=webp&amp;s=' . $this->sign(self::IMAGE, '300x') . '">',
+			$generator->rewriteHtml(
+				'<img src="/web/ir/x100/fixtures/test.png?s=' . $this->sign(self::IMAGE, 'x100') . '">'
+				. '<img src="/web/ir/300x/fixtures/test.png">',
+			),
+		);
+	}
+
+
+	public function testRestoreDynamicUrlsSigned(): void
+	{
+		[$generator] = $this->create(self::PUBLIC_DIR, secret: UrlSignerTest::SECRET);
+
+		$this->assertSame(
+			'<img src="/web/ir/c10xc10/dir%20x/a.png?s=' . $this->sign('dir x/a.png', 'c10xc10') . '">',
+			$generator->restoreDynamicUrls('<img src="/web/_public/ir/dir%20x/a.png/c10xc10.webp">'),
+		);
+	}
+
+
+	private function sign(string $file, ?string $params): string
+	{
+		return (string) (new UrlSigner($this->getConfig(null, secret: UrlSignerTest::SECRET)))->sign($file, $params);
+	}
+
+
 	private function render(ResizerLinkGenerator $generator, Control $control, string $template): string
 	{
 		$latte = new Engine;
@@ -337,18 +466,18 @@ class ResizerLinkGeneratorTest extends TestCase
 
 
 	/** @return array{ResizerLinkGenerator, Resizer} */
-	private function create(?string $publicCacheDir, bool $webp = false): array
+	private function create(?string $publicCacheDir, bool $webp = false, ?string $secret = null): array
 	{
-		$config = $this->getConfig($publicCacheDir, $webp);
+		$config = $this->getConfig($publicCacheDir, $webp, $secret);
 		$httpRequest = new Request(new UrlScript('https://example.com/web/index.php', '/web/index.php'));
 		$outputFormat = new OutputFormat($httpRequest, $config);
 		$resizer = new Resizer($config, $outputFormat);
 
-		return [new ResizerLinkGenerator($config, $outputFormat, $resizer, $httpRequest), $resizer];
+		return [new ResizerLinkGenerator($config, $outputFormat, $resizer, $httpRequest, new UrlSigner($config)), $resizer];
 	}
 
 
-	private function getConfig(?string $publicCacheDir, bool $webp = false): ResizerConfig
+	private function getConfig(?string $publicCacheDir, bool $webp = false, ?string $secret = null): ResizerConfig
 	{
 		$config = new ResizerConfigDTO;
 		$config->tempDir = __DIR__ . '/../temp';
@@ -356,6 +485,7 @@ class ResizerLinkGeneratorTest extends TestCase
 		$config->publicCacheDir = $publicCacheDir;
 		$config->library = 'Gd';
 		$config->isWebpSupportedByServer = $webp;
+		$config->secret = $secret;
 
 		return new ResizerConfig($config);
 	}

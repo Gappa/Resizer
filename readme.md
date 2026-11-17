@@ -34,6 +34,7 @@
 		compressionPng: 9 # 0 - 9
 		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
 		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
+		secret: null # at least 32 characters, enables signed URLs, see below
 		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
 		upgradePng2Webp: true # automatically convert PNGs to WEBP when the format is supported by the browser & server
@@ -117,6 +118,25 @@ Notes:
 - A changed source image is regenerated on the next `/ir/` request, but an existing static file keeps being served
   until the public cache is purged.
 
+# Signed URLs
+
+With `secret` set, every `/ir/` URL must carry a signature (`?s=...`, HMAC-SHA256 of the file and params),
+otherwise the presenter responds with HTTP 403. Nobody can then make the server generate thumbnails
+with arbitrary params (CPU and disk usage).
+
+``` neon
+resizer:
+	secret: %resizerSecret% # e.g. from the local config, never commit it
+```
+
+- `{rlink}`, `{rlinkabs}` and `ResizerLinkGenerator::link()` sign the links automatically
+  (in static mode only the links to not yet generated thumbnails, static files need no signature).
+- The format is not signed (only a few supported values are possible), params `null` and `auto` are equal.
+- URLs stored in content (rich text) have no signature: render them through `ResizerLinkGenerator::rewriteHtml()`,
+  which adds (or fixes) the signature, also without static mode. `restoreDynamicUrls()` signs the restored URLs.
+- Changing the secret invalidates all dynamic URLs in the wild (cached pages, e-mails), static files keep working.
+- Generate the secret e.g. with `php -r "echo bin2hex(random_bytes(32));"`.
+
 # Relative and absolute URLs
 
 Relative:
@@ -134,8 +154,8 @@ Absolute, uses diffent tag:
   is checked too. Paths with `..` segments, backslashes or NUL bytes are refused. Symlinks inside `wwwDir` are followed.
 - Requested dimensions are limited by `maxWidth`/`maxHeight` (default 4000 px, max. 5 digits in the URL).
 - Invalid requests get HTTP 400, missing images HTTP 404, without details of the error.
-- Every params combination creates a new cached file. If that is a concern (disk usage), restrict the allowed params
-  in the route or put the resizer behind a CDN with rate limiting.
+- Every params combination creates a new cached file. Enable signed URLs (`secret`), so only the params
+  used by the application can be requested.
 - With Imagick, a restrictive ImageMagick `policy.xml` (resource limits, disabled coders) is recommended as well.
 
 # Upgrading to 9.x
@@ -149,3 +169,4 @@ Absolute, uses diffent tag:
 - `ResizePresenter` returns 400 for invalid requests (was 404) and sends `Vary: Accept` when the format is negotiated.
 - Crop dimensions may differ by 1px from 8.x (rounding fix), cached thumbnails do not need to be regenerated.
 - `ResizerParams::isIfresize()` was renamed to `isIfResize()`.
+- New `UrlSigner` service, a new constructor argument of `ResizerLinkGenerator` and `ResizePresenter` (autowired in DI).

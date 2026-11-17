@@ -24,14 +24,21 @@ final class ResizerLinkGenerator
 		private readonly OutputFormat $outputFormat,
 		private readonly IResizer $resizer,
 		private readonly IRequest $httpRequest,
-	)
-	{
+		private readonly UrlSigner $urlSigner,
+	) {
 	}
 
 
 	public function isStatic(): bool
 	{
 		return $this->config->isStatic();
+	}
+
+
+	/** Dynamic links are signed (a secret is configured) */
+	public function isSigned(): bool
+	{
+		return $this->urlSigner->isEnabled();
 	}
 
 
@@ -73,16 +80,24 @@ final class ResizerLinkGenerator
 			$destination = '//' . $destination;
 		}
 
-		return (string) $linker->link($destination, [$file, $params, $this->resolveFormat($file, $format)]);
+		$args = [$file, $params, $this->resolveFormat($file, $format)];
+		$signature = $this->urlSigner->sign($file, $params);
+
+		if ($signature !== null) {
+			$args[] = $signature; // positional: file, params, format, s
+		}
+
+		return (string) $linker->link($destination, $args);
 	}
 
 
 	/**
 	 * Rewrites dynamic resizer URLs in HTML (e.g. rich text content with stored "/ir/..." links):
 	 * an existing thumbnail gets its static URL, a missing one gets the format filled in,
-	 * so the thumbnail it generates is found next time. Only root-relative URLs and absolute URLs
-	 * of the current host in attribute values are rewritten; URLs with invalid params or other query
-	 * parameters are left as they are.
+	 * so the thumbnail it generates is found next time. With signing enabled (in static mode or not)
+	 * the signature is added or replaced, so stored unsigned URLs keep working. Only root-relative URLs
+	 * and absolute URLs of the current host in attribute values are rewritten; URLs with invalid params
+	 * or other query parameters are left as they are.
 	 * @param string $routePrefix path of the resizer route without the base path
 	 * @param bool $fillFormat add the format to URLs of missing thumbnails (off for edited content, so it stays as stored)
 	 */
@@ -91,7 +106,7 @@ final class ResizerLinkGenerator
 		string $routePrefix = ResizerParamsParser::PATTERN_IR,
 		bool $fillFormat = true,
 	): string {
-		if (!$this->isStatic() || !str_contains($html, $routePrefix)) {
+		if ((!$this->isStatic() && !$this->isSigned()) || !str_contains($html, $routePrefix)) {
 			return $html;
 		}
 
@@ -101,9 +116,10 @@ final class ResizerLinkGenerator
 
 		// attribute values only: after a quote or "=", or after a comma in srcset
 		$pattern = '~(?<=["\'=,]|, )'
-			. '(?<base>' . preg_quote($baseUrl, '~') . '|' . preg_quote($basePath, '~') . ')/' . preg_quote($routePrefix, '~')
-			. '(?<params>[^/"\'\s?#<>]+)/(?<file>[^"\'\s?#<>,)]+)'
+			. '(?<url>(?<base>' . preg_quote($baseUrl, '~') . '|' . preg_quote($basePath, '~') . ')/' . preg_quote($routePrefix, '~')
+			. '(?<params>[^/"\'\s?#<>]+)/(?<file>[^"\'\s?#<>,)]+))'
 			. '(?:\?format=(?<format>[a-z]+))?'
+			. '(?:(?:\?|&amp;|&)' . UrlSigner::PARAMETER . '=(?<signature>[A-Za-z0-9_-]+))?'
 			. '(?=["\'\s,)<>]|$)~i';
 
 		return (string) preg_replace_callback($pattern, function (array $m) use ($fillFormat): string {
@@ -111,6 +127,7 @@ final class ResizerLinkGenerator
 			$file = $decode($m['file']);
 			$params = $decode($m['params']);
 			$format = ($m['format'] ?? '') !== '' ? strtolower($m['format']) : null;
+			$signature = ($m['signature'] ?? '') !== '' ? $m['signature'] : null;
 
 			if (!preg_match(ResizerParamsParser::PATTERN, $params)) {
 				return $m[0];
@@ -122,15 +139,14 @@ final class ResizerLinkGenerator
 				return $m['base'] . '/' . $staticPath;
 			}
 
-			if ($format === null && $fillFormat) {
-				$resolved = $this->resolveFormat($file);
+			$newFormat = $format === null && $fillFormat ? $this->resolveFormat($file) : $format;
+			$newSignature = $this->urlSigner->sign($file, $params) ?? $signature;
 
-				if ($resolved !== null) {
-					return $m[0] . '?format=' . $resolved;
-				}
+			if ($newFormat === $format && $newSignature === $signature) {
+				return $m[0];
 			}
 
-			return $m[0];
+			return $m['url'] . $this->buildQuery($newFormat, $newSignature);
 		}, $html);
 	}
 
@@ -160,15 +176,36 @@ final class ResizerLinkGenerator
 			. '(?<file>[^"\'\s?#<>]+)/(?<params>[^/"\'\s?#<>]+)\.(?<format>[a-z]+)'
 			. '(?=["\'\s,)<>]|$)~i';
 
-		return (string) preg_replace_callback($pattern, static function (array $m) use ($routePrefix): string {
+		return (string) preg_replace_callback($pattern, function (array $m) use ($routePrefix): string {
 			$params = rawurldecode($m['params']);
 
 			if (!preg_match(ResizerParamsParser::PATTERN, $params)) {
 				return $m[0];
 			}
 
-			return $m['base'] . '/' . $routePrefix . $params . '/' . $m['file'];
+			$signature = $this->urlSigner->sign(rawurldecode($m['file']), $params);
+
+			return $m['base'] . '/' . $routePrefix . $params . '/' . $m['file'] . $this->buildQuery(null, $signature);
 		}, $html);
+	}
+
+
+	/**
+	 * Query string of a dynamic URL in HTML (the separator is escaped, it is used in attribute values).
+	 */
+	private function buildQuery(?string $format, ?string $signature): string
+	{
+		$query = [];
+
+		if ($format !== null) {
+			$query[] = 'format=' . rawurlencode($format);
+		}
+
+		if ($signature !== null) {
+			$query[] = UrlSigner::PARAMETER . '=' . $signature;
+		}
+
+		return $query === [] ? '' : '?' . implode('&amp;', $query);
 	}
 
 

@@ -138,11 +138,79 @@ class ResizePresenterTest extends TestCase
 	}
 
 
+	public function testValidSignature(): void
+	{
+		$signature = (string) $this->createSigner()->sign(self::IMAGE, 'x50');
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50', 's' => $signature], secret: UrlSignerTest::SECRET);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+	}
+
+
+	public function testValidSignatureWithDefaultParams(): void
+	{
+		// signed without params (route default "auto")
+		$signature = (string) $this->createSigner()->sign(self::IMAGE, null);
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'auto', 's' => $signature], secret: UrlSignerTest::SECRET);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+	}
+
+
+	public function testFormatIsNotSigned(): void
+	{
+		$signature = (string) $this->createSigner()->sign(self::IMAGE, 'x50');
+		$response = $this->runPresenter(
+			['file' => self::IMAGE, 'params' => 'x50', 'format' => 'jpg', 's' => $signature],
+			secret: UrlSignerTest::SECRET,
+		);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+	}
+
+
+	public function testMissingSignature(): void
+	{
+		$this->assertError(
+			IResponse::S403_Forbidden,
+			'Invalid signature.',
+			['file' => self::IMAGE, 'params' => 'x50'],
+			UrlSignerTest::SECRET,
+		);
+	}
+
+
+	public function testSignatureOfDifferentParams(): void
+	{
+		$signature = (string) $this->createSigner()->sign(self::IMAGE, 'x50');
+
+		$this->assertError(
+			IResponse::S403_Forbidden,
+			'Invalid signature.',
+			['file' => self::IMAGE, 'params' => 'x51', 's' => $signature],
+			UrlSignerTest::SECRET,
+		);
+		$this->assertDirectoryDoesNotExist(self::TEMP_DIR . '/resizer/fixtures/test.png');
+	}
+
+
+	private function createSigner(): UrlSigner
+	{
+		$config = new ResizerConfigDTO;
+		$config->tempDir = self::TEMP_DIR;
+		$config->wwwDir = __DIR__;
+		$config->library = 'Gd';
+		$config->secret = UrlSignerTest::SECRET;
+
+		return new UrlSigner(new ResizerConfig($config));
+	}
+
+
 	/** @param array<string, string> $params */
-	private function assertError(int $code, string $message, array $params): void
+	private function assertError(int $code, string $message, array $params, ?string $secret = null): void
 	{
 		try {
-			$this->runPresenter($params);
+			$this->runPresenter($params, secret: $secret);
 			$this->fail('BadRequestException expected.');
 		} catch (BadRequestException $e) {
 			$this->assertSame($code, $e->getCode());
@@ -163,7 +231,7 @@ class ResizePresenterTest extends TestCase
 	 * @param array<string, string> $params
 	 * @param array<string, string> $headers
 	 */
-	private function runPresenter(array $params, array $headers = [], bool $webp = false): Response
+	private function runPresenter(array $params, array $headers = [], bool $webp = false, ?string $secret = null): Response
 	{
 		$httpRequest = new Request(
 			new UrlScript('https://example.com/ir/x50/fixtures/test.png', '/index.php'),
@@ -175,9 +243,13 @@ class ResizePresenterTest extends TestCase
 		$config->wwwDir = __DIR__;
 		$config->library = 'Gd';
 		$config->isWebpSupportedByServer = $webp;
+		$config->secret = $secret;
 		$resizerConfig = new ResizerConfig($config);
 
-		$presenter = new ResizePresenter(new Resizer($resizerConfig, new OutputFormat($httpRequest, $resizerConfig)));
+		$presenter = new ResizePresenter(
+			new Resizer($resizerConfig, new OutputFormat($httpRequest, $resizerConfig)),
+			new UrlSigner($resizerConfig),
+		);
 		$presenter->injectPrimary($httpRequest, $this->httpResponse);
 		$presenter->autoCanonicalize = false; // no router in the test
 

@@ -6,6 +6,7 @@ namespace Nelson\Resizer\Presenters;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\IResizer;
+use Nelson\Resizer\UrlSigner;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
@@ -17,6 +18,7 @@ final class ResizePresenter extends Presenter
 {
 	public function __construct(
 		private readonly IResizer $resizer,
+		private readonly UrlSigner $urlSigner,
 	) {
 		parent::__construct();
 	}
@@ -43,7 +45,12 @@ final class ResizePresenter extends Presenter
 		string $file,
 		?string $params = null,
 		?string $format = null,
+		?string $s = null, // signature, see UrlSigner::PARAMETER
 	): void {
+		if (!$this->urlSigner->verify($file, $params, $s)) {
+			$this->error('Invalid signature.', IResponse::S403_Forbidden);
+		}
+
 		try {
 			$image = $this->resizer->process($file, $params, $format);
 		} catch (ImageNotFoundOrReadableException) {

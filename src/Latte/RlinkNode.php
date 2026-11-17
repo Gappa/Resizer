@@ -53,7 +53,7 @@ final class RlinkNode extends StatementNode
 
 
 	/**
-	 * Runtime part of {rlink}/{rlinkabs}. In static mode returns a direct URL of an existing thumbnail,
+	 * Runtime part of {rlink}/{rlinkabs}. In static mode returns a direct URL of an existing thumbnail, with signing enabled a signed link;
 	 * otherwise a link to the resize presenter with the format filled in, so the thumbnail
 	 * it generates is found by the next static lookup. Works with LinkGenerator (e-mails) too.
 	 * @param array<int|string, mixed> $args file, params, format - positional or named
@@ -64,7 +64,7 @@ final class RlinkNode extends StatementNode
 		$lg = $global->uiPresenter ?? $global->uiControl;
 		$linkGenerator = $global->{self::PROVIDER} ?? null;
 
-		if ($linkGenerator instanceof ResizerLinkGenerator && $linkGenerator->isStatic()) {
+		if ($linkGenerator instanceof ResizerLinkGenerator && ($linkGenerator->isStatic() || $linkGenerator->isSigned())) {
 			$named = !array_key_exists(0, $args);
 			$file = $args[$named ? 'file' : 0] ?? null;
 			$params = $args[$named ? 'params' : 1] ?? null;

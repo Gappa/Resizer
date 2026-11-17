@@ -49,4 +49,10 @@ final class ResizerConfigDTO
 
 	/** @var positive-int */
 	public int $maxHeight = 4000;
+
+	/**
+	 * Secret key for signing URLs (at least 32 characters). When set, the resize presenter
+	 * refuses requests without a valid signature. Null disables signing.
+	 */
+	public ?string $secret = null;
 }
