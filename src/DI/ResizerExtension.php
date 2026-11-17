@@ -37,7 +37,12 @@ final class ResizerExtension extends CompilerExtension
 			'qualityAvif' => Expect::int(70)->min(0)->max(100),
 			'qualityWebp' => Expect::int(70)->min(0)->max(100),
 			'qualityJpeg' => Expect::int(70)->min(0)->max(100),
+			'qualityJxl' => Expect::int(70)->min(0)->max(100),
 			'compressionPng' => Expect::int(9)->min(0)->max(9),
+			'formatPriority' => Expect::listOf(Expect::anyOf('jxl', 'webp', 'avif'))
+				->default(['jxl', 'webp', 'avif'])
+				->mergeDefaults(false)
+				->assert(static fn(array $list): bool => count($list) === count(array_unique($list)), 'Formats must not repeat'),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);
@@ -51,6 +56,7 @@ final class ResizerExtension extends CompilerExtension
 		$config = $this->getConfig();
 		$config->isWebpSupportedByServer = $this->isWebpSupported($config);
 		$config->isAvifSupportedByServer = $this->isAvifSupported($config);
+		$config->isJxlSupportedByServer = $this->isJxlSupported($config);
 
 		$builder->addDefinition($this->prefix('config'))
 			->setFactory(ResizerConfig::class)
@@ -99,14 +105,28 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	private function isFormatSupported(ResizerConfigDTO $config, string $gd, string $imagick, string $gmagick): bool
+	/**
+	 * @param string|null $gd key in gd_info(), null when GD can't write the format
+	 * @param string|null $gmagick format name, null when Imagine's Gmagick driver does not support it
+	 */
+	private function isFormatSupported(ResizerConfigDTO $config, ?string $gd, string $imagick, ?string $gmagick): bool
 	{
 		return match ($config->library) {
-			'Gd' => function_exists('gd_info') && !empty(gd_info()[$gd]),
+			'Gd' => $gd !== null && function_exists('gd_info') && !empty(gd_info()[$gd]),
 			'Imagick' => extension_loaded('imagick') && in_array($imagick, Imagick::queryFormats(), true),
-			'Gmagick' => extension_loaded('gmagick') && in_array($gmagick, (new Gmagick)->queryformats(), true),
+			'Gmagick' => $gmagick !== null && extension_loaded('gmagick') && in_array($gmagick, (new Gmagick)->queryformats(), true),
 			default => false,
 		};
+	}
+
+
+	/**
+	 * JPEG XL: GD can't write it and Imagine's Gmagick driver has no JXL options (quality would be ignored),
+	 * so only Imagick with ImageMagick built with libjxl.
+	 */
+	private function isJxlSupported(ResizerConfigDTO $config): bool
+	{
+		return $this->isFormatSupported($config, null, 'JXL', null);
 	}
 
 

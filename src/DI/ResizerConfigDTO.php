@@ -22,9 +22,20 @@ final class ResizerConfigDTO
 	public bool $upgradePng2Webp = true;
 	public bool $upgradeJpg2Avif = true;
 	public bool $upgradePng2Avif = true;
+	public bool $upgradeJpg2Jxl = false;
+	public bool $upgradePng2Jxl = false;
+
+	/**
+	 * Order in which the modern formats are tried when upgrading JPEG/PNG, or when the browser does not
+	 * support the format of a WEBP/AVIF/JXL source. A format missing in the list is never used for that.
+	 * AVIF is last by default, its encoding is slow.
+	 * @var list<'jxl'|'webp'|'avif'>
+	 */
+	public array $formatPriority = ['jxl', 'webp', 'avif'];
 
 	public bool $isWebpSupportedByServer = false;
 	public bool $isAvifSupportedByServer = false;
+	public bool $isJxlSupportedByServer = false;
 
 	public bool $strip = true;
 
@@ -36,6 +47,9 @@ final class ResizerConfigDTO
 
 	/** @var int<0, 100> */
 	public int $qualityJpeg = 70;
+
+	/** @var int<0, 100> Imagine clamps it to 9-99, 100 in the params means lossless */
+	public int $qualityJxl = 70;
 
 	/** @var int<0, 9> */
 	public int $compressionPng = 9;

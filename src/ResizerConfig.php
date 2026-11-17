@@ -42,6 +42,10 @@ final class ResizerConfig
 		if ($config->isAvifSupportedByServer) {
 			$this->supportedFormats[] = Resizer::FORMAT_SUFFIX_AVIF;
 		}
+
+		if ($config->isJxlSupportedByServer) {
+			$this->supportedFormats[] = Resizer::FORMAT_SUFFIX_JXL;
+		}
 	}
 
 
@@ -143,6 +147,60 @@ final class ResizerConfig
 	}
 
 
+	public function isJxlSupportedByServer(): bool
+	{
+		return $this->config->isJxlSupportedByServer;
+	}
+
+
+	public function canUpgradeJpg2Jxl(): bool
+	{
+		return $this->config->upgradeJpg2Jxl;
+	}
+
+
+	public function canUpgradePng2Jxl(): bool
+	{
+		return $this->config->upgradePng2Jxl;
+	}
+
+
+	/**
+	 * The server can write the format (JPEG, PNG and GIF always).
+	 */
+	public function isFormatSupportedByServer(string $format): bool
+	{
+		return in_array($format, $this->supportedFormats, true);
+	}
+
+
+	/**
+	 * Upgrade of a JPEG/PNG source to a modern format is enabled.
+	 */
+	public function canUpgrade(string $sourceFormat, string $targetFormat): bool
+	{
+		return match ([$sourceFormat, $targetFormat]) {
+			[Resizer::FORMAT_SUFFIX_JPG, Resizer::FORMAT_SUFFIX_WEBP] => $this->canUpgradeJpg2Webp(),
+			[Resizer::FORMAT_SUFFIX_JPG, Resizer::FORMAT_SUFFIX_AVIF] => $this->canUpgradeJpg2Avif(),
+			[Resizer::FORMAT_SUFFIX_JPG, Resizer::FORMAT_SUFFIX_JXL] => $this->canUpgradeJpg2Jxl(),
+			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_WEBP] => $this->canUpgradePng2Webp(),
+			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_AVIF] => $this->canUpgradePng2Avif(),
+			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_JXL] => $this->canUpgradePng2Jxl(),
+			default => false,
+		};
+	}
+
+
+	/**
+	 * Order of modern formats for upgrades and fallbacks, see ResizerConfigDTO::$formatPriority.
+	 * @return list<string>
+	 */
+	public function getFormatPriority(): array
+	{
+		return $this->config->formatPriority;
+	}
+
+
 	public function isStrip(): bool
 	{
 		return $this->config->strip;
@@ -167,6 +225,13 @@ final class ResizerConfig
 	public function getQualityJpeg(): int
 	{
 		return $this->config->qualityJpeg;
+	}
+
+
+	/** @return int<0, 100> */
+	public function getQualityJxl(): int
+	{
+		return $this->config->qualityJxl;
 	}
 
 
@@ -204,6 +269,8 @@ final class ResizerConfig
 	 * 	avif_quality: int<0, 100>,
 	 * 	webp_quality: int<0, 100>,
 	 * 	jpeg_quality: int<0, 100>,
+	 * 	jxl_quality: int<0, 100>,
+	 * 	jxl_lossless: bool,
 	 * 	png_compression_level: int<0, 9>
 	 * }
 	 */
@@ -214,6 +281,8 @@ final class ResizerConfig
 				'avif_quality' => $this->getQualityAvif(),
 				'webp_quality' => $this->getQualityWebp(),
 				'jpeg_quality' => $this->getQualityJpeg(),
+				'jxl_quality' => $this->getQualityJxl(),
+				'jxl_lossless' => false,
 				'png_compression_level' => $this->getCompressionPng(),
 			];
 		}
@@ -225,6 +294,9 @@ final class ResizerConfig
 			'avif_quality' => $quality,
 			'webp_quality' => $quality,
 			'jpeg_quality' => $quality,
+			'jxl_quality' => $quality,
+			// Imagine caps jxl_quality at 99, lossless has its own option
+			'jxl_lossless' => $quality === 100,
 			'png_compression_level' => $compressionPng,
 		];
 	}

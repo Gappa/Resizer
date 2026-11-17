@@ -4,104 +4,92 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Nelson\Resizer\Exceptions\UnsupportedFormatException;
-use Nette\Http\Request;
+use Nette\Http\Helpers;
+use Nette\Http\IRequest;
 
+/**
+ * Resolves the output format of a thumbnail:
+ * - an explicitly requested format is used as is (if the server supports it),
+ * - a WEBP/AVIF/JXL source keeps its format when the browser accepts it, otherwise the first format
+ *   of formatPriority the browser accepts is used, JPEG as the last resort,
+ * - a JPEG/PNG source is upgraded to the first format of formatPriority the browser accepts
+ *   and the upgrade is enabled for, otherwise it keeps its format,
+ * - other formats (GIF) are kept.
+ */
 final class OutputFormat
 {
-	private bool $browserSupportsWebp;
-	private bool $browserSupportsAvif;
+	/**
+	 * Modern formats the browser declares in the Accept header (without the q=0 ones).
+	 * @var list<string>
+	 */
+	private array $browserFormats;
 
 
 	public function __construct(
-		private readonly Request $request,
+		private readonly IRequest $request,
 		private readonly ResizerConfig $config,
-	)
-	{
-		$this->browserSupportsAvif = $this->browserSupports(Resizer::MIME_TYPE_AVIF);
-		$this->browserSupportsWebp = $this->browserSupports(Resizer::MIME_TYPE_WEBP);
+	) {
+		$this->browserFormats = $this->parseAccept((string) $this->request->getHeader('accept'));
 	}
 
 
 	public function getOutputFormat(string $file, ?string $format = null): string
 	{
-		return $this->resolve($file, $format, $this->browserSupportsWebp, $this->browserSupportsAvif);
+		return $this->resolve($file, $format, $this->browserFormats);
 	}
 
 
 	/**
 	 * Output format independent of the current request's Accept header - assumes the browser supports
-	 * both WEBP and AVIF, so the result depends only on the server support and the upgrade settings.
+	 * WEBP and AVIF, so the result depends only on the server support and the config.
 	 * Used for static links, where the format has to be known when the link is generated.
+	 * JPEG XL is not assumed: browsers without its support are still common (Edge, older versions).
+	 * Use an explicit format for it, e.g. <source type="image/jxl"> in <picture>.
 	 */
 	public function getStaticOutputFormat(string $file, ?string $format = null): string
 	{
-		return $this->resolve($file, $format, true, true);
+		return $this->resolve($file, $format, [Resizer::FORMAT_SUFFIX_WEBP, Resizer::FORMAT_SUFFIX_AVIF]);
 	}
 
 
-	private function resolve(
-		string $file,
-		?string $format,
-		bool $browserSupportsWebp,
-		bool $browserSupportsAvif,
-	): string {
-		if ($format === null) {
-			$suffix = $this->getFileFormat($file);
-			$canServeWebp = $this->config->isWebpSupportedByServer() && $browserSupportsWebp;
-			$canServeAvif = $this->config->isAvifSupportedByServer() && $browserSupportsAvif;
-
-			$format = match ($suffix) {
-				Resizer::FORMAT_SUFFIX_JPG => $this->getOutputFormatForJpg($canServeWebp, $canServeAvif),
-				Resizer::FORMAT_SUFFIX_PNG => $this->getOutputFormatForPng($canServeWebp, $canServeAvif),
-				Resizer::FORMAT_SUFFIX_WEBP => $this->getOutputFormatForWebp($canServeWebp, $canServeAvif),
-				Resizer::FORMAT_SUFFIX_AVIF => $this->getOutputFormatForAvif($canServeWebp, $canServeAvif),
-				default => $suffix,
-			};
-		}
-
-		$format = strtolower($format);
+	/** @param list<string> $browserFormats */
+	private function resolve(string $file, ?string $format, array $browserFormats): string
+	{
+		$format = strtolower($format ?? $this->negotiate($this->getFileFormat($file), $browserFormats));
 		$this->assertFormatSupported($format);
 		return $format;
 	}
 
 
-	private function getOutputFormatForWebp(bool $canServeWebp, bool $canServeAvif): string
+	/** @param list<string> $browserFormats */
+	private function negotiate(string $source, array $browserFormats): string
 	{
-		return match (true) {
-			$canServeWebp => Resizer::FORMAT_SUFFIX_WEBP,
-			$canServeAvif => Resizer::FORMAT_SUFFIX_AVIF,
-			default => Resizer::FORMAT_SUFFIX_JPG,
-		};
-	}
+		$canServe = fn(string $format): bool => in_array($format, $browserFormats, true)
+			&& $this->config->isFormatSupportedByServer($format);
 
+		if (in_array($source, Resizer::MODERN_FORMATS, true)) {
+			if ($canServe($source)) {
+				return $source;
+			}
 
-	private function getOutputFormatForAvif(bool $canServeWebp, bool $canServeAvif): string
-	{
-		return match (true) {
-			$canServeAvif => Resizer::FORMAT_SUFFIX_AVIF,
-			$canServeWebp => Resizer::FORMAT_SUFFIX_WEBP,
-			default => Resizer::FORMAT_SUFFIX_JPG,
-		};
-	}
+			foreach ($this->config->getFormatPriority() as $format) {
+				if ($canServe($format)) {
+					return $format;
+				}
+			}
 
+			return Resizer::FORMAT_SUFFIX_JPG;
+		}
 
-	private function getOutputFormatForJpg(bool $canServeWebp, bool $canServeAvif): string
-	{
-		return match (true) {
-			$canServeAvif && $this->config->canUpgradeJpg2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
-			$canServeWebp && $this->config->canUpgradeJpg2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
-			default => Resizer::FORMAT_SUFFIX_JPG,
-		};
-	}
+		if ($source === Resizer::FORMAT_SUFFIX_JPG || $source === Resizer::FORMAT_SUFFIX_PNG) {
+			foreach ($this->config->getFormatPriority() as $format) {
+				if ($canServe($format) && $this->config->canUpgrade($source, $format)) {
+					return $format;
+				}
+			}
+		}
 
-
-	private function getOutputFormatForPng(bool $canServeWebp, bool $canServeAvif): string
-	{
-		return match (true) {
-			$canServeAvif && $this->config->canUpgradePng2Avif() => Resizer::FORMAT_SUFFIX_AVIF,
-			$canServeWebp && $this->config->canUpgradePng2Webp() => Resizer::FORMAT_SUFFIX_WEBP,
-			default => Resizer::FORMAT_SUFFIX_PNG,
-		};
+		return $source;
 	}
 
 
@@ -116,37 +104,32 @@ final class OutputFormat
 	}
 
 
-	private function browserSupports(string $format): bool
+	/**
+	 * Only explicitly listed types count, "image/*" does not mean the browser decodes every format.
+	 * @return list<string>
+	 */
+	private function parseAccept(string $accept): array
 	{
-		$accept = (string) $this->request->getHeader('accept');
-		return str_contains($accept, $format);
-	}
+		$formats = [];
 
+		foreach (array_keys(Helpers::parseQualityList($accept)) as $mimeType) {
+			$format = array_search($mimeType, Resizer::MIME_TYPES, true);
 
-	/** @param string|array<int, string> $suffixes */
-	private function isFileOfFormat(string $path, string|array $suffixes): bool
-	{
-		if (is_string($suffixes)) {
-			$suffixes = [$suffixes];
+			if (is_string($format) && in_array($format, Resizer::MODERN_FORMATS, true)) {
+				$formats[] = $format;
+			}
 		}
 
-		$ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-		return in_array($ext, $suffixes, true);
-	}
-
-
-	private function isFileJpg(string $path): bool
-	{
-		return $this->isFileOfFormat($path, Resizer::FORMAT_SUFFIXES_JPG);
+		return $formats;
 	}
 
 
 	private function getFileFormat(string $file): string
 	{
-		return match (true) {
-			$this->isFileJpg($file) => Resizer::FORMAT_SUFFIX_JPG,
-			default => pathinfo($file, PATHINFO_EXTENSION),
-		};
-	}
+		$suffix = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
+		return in_array($suffix, Resizer::FORMAT_SUFFIXES_JPG, true)
+			? Resizer::FORMAT_SUFFIX_JPG
+			: $suffix;
+	}
 }

@@ -31,6 +31,7 @@
 		qualityAvif: 70 # 0 - 100
 		qualityWebp: 70 # 0 - 100
 		qualityJpeg: 70 # 0 - 100
+		qualityJxl: 70 # 0 - 100 (Imagine clamps it to 9 - 99)
 		compressionPng: 9 # 0 - 9
 		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
 		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
@@ -39,11 +40,49 @@
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
 		upgradePng2Webp: true # automatically convert PNGs to WEBP when the format is supported by the browser & server
 		upgradePng2Avif: true # automatically convert PNGs to AVIF when the format is supported by the browser & server
+		upgradeJpg2Jxl: false # automatically convert JPEGs to JPEG XL when the format is supported by the browser & server
+		upgradePng2Jxl: false # automatically convert PNGs to JPEG XL when the format is supported by the browser & server
+		formatPriority: [jxl, webp, avif] # order of the modern formats for upgrades and fallbacks
 	```
 
-There is also an upgrade/downgrade logic for AVIF & WEBP. Most preferred is the original AVIF/WEBP, then each other, finally JPEG.
+## Output format
 
-AVIF is preferred over WEBP in case both upgrades are enabled.
+Without an explicit format the output format is negotiated by the `Accept` header of the request
+(only explicitly listed types count, `image/*` does not) and the formats the server can write:
+
+- JPEG/PNG source: upgraded to the first format of `formatPriority` the browser accepts and the `upgrade*` option
+  is enabled for, otherwise it keeps its format.
+- WEBP/AVIF/JPEG XL source: keeps its format when the browser accepts it, otherwise the first format
+  of `formatPriority` the browser accepts, finally JPEG.
+- GIF keeps its format.
+
+A format missing in `formatPriority` is never used for upgrades or fallbacks (an explicit format still works).
+AVIF is last by default, its encoding is slow - with WEBP before AVIF, JPEG/PNG are practically never upgraded
+to AVIF (every browser with AVIF support accepts WEBP). Use `[avif, webp]` for the order of 8.x.
+
+## JPEG XL
+
+Supported by Safari 17+, Chrome 155+ and Firefox 158+ (not by Edge as of 11/2026). Requirements on the server:
+
+- `library: Imagick` with ImageMagick built with libjxl (`Imagick::queryFormats('JXL')`). GD can't write JPEG XL,
+  Imagine's Gmagick driver does not support its options.
+- `ext-fileinfo` with a libmagic recognizing `image/jxl` for JXL source images (the one bundled with PHP 8.5 does).
+
+The upgrades are disabled by default (`upgradeJpg2Jxl`, `upgradePng2Jxl`), each format is another variant
+of every thumbnail in the cache. Quality `-q100` means lossless.
+
+In static mode the format of the link can't depend on the browser, JPEG XL is therefore never chosen
+automatically there. Use an explicit format in `<picture>`:
+
+``` latte
+<picture>
+	<source type="image/jxl" srcset="{rlink 'photo.jpg', '400x', 'jxl'}">
+	<img src="{rlink 'photo.jpg', '400x'}" alt="">
+</picture>
+```
+
+The dynamic responses send `Vary: Accept` - a CDN in front of the resizer must respect it (or normalize the `Accept`
+header), otherwise it serves JPEG XL to browsers without its support.
 
 # Usage
 
@@ -169,4 +208,8 @@ Absolute, uses diffent tag:
 - `ResizePresenter` returns 400 for invalid requests (was 404) and sends `Vary: Accept` when the format is negotiated.
 - Crop dimensions may differ by 1px from 8.x (rounding fix), cached thumbnails do not need to be regenerated.
 - `ResizerParams::isIfresize()` was renamed to `isIfResize()`.
+- WEBP is preferred over AVIF now (`formatPriority: [jxl, webp, avif]`), set `formatPriority: [avif, webp]`
+  for the previous behavior. JPEG XL support is new, disabled by default.
+- `OutputFormat` accepts `Nette\Http\IRequest`; the `Accept` header is parsed properly (`q=0` means not supported).
+- `ResizePresenter` sends the Content-Type by the extension of the thumbnail (libmagic may not know JPEG XL).
 - New `UrlSigner` service, a new constructor argument of `ResizerLinkGenerator` and `ResizePresenter` (autowired in DI).

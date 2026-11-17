@@ -22,7 +22,7 @@
 		"tracy/tracy": "^2.12"
 	},
 	"suggest": {
-		"ext-imagick": "Imagick library (recommended)",
+		"ext-imagick": "Imagick library (recommended, required for JPEG XL)",
 		"ext-gd": "GD library",
 		"ext-gmagick": "Gmagick library"
 	},

@@ -20,6 +20,7 @@ final class Resizer implements IResizer
 	public const string FORMAT_SUFFIX_WEBP = 'webp';
 	public const string FORMAT_SUFFIX_AVIF = 'avif';
 	public const string FORMAT_SUFFIX_PNG = 'png';
+	public const string FORMAT_SUFFIX_JXL = 'jxl';
 
 	public const array FORMAT_SUFFIXES_JPG = [
 		'jpg',
@@ -27,15 +28,31 @@ final class Resizer implements IResizer
 		'jfif',
 	];
 
+	/** Formats the output can be negotiated to (by the Accept header and the config) */
+	public const array MODERN_FORMATS = [self::FORMAT_SUFFIX_WEBP, self::FORMAT_SUFFIX_AVIF, self::FORMAT_SUFFIX_JXL];
+
 	public const string MIME_TYPE_WEBP = 'image/webp';
 	public const string MIME_TYPE_AVIF = 'image/avif';
+	public const string MIME_TYPE_JXL = 'image/jxl';
+
+	/** MIME types of the output formats (libmagic may not know newer formats) */
+	public const array MIME_TYPES = [
+		'jpg' => 'image/jpeg',
+		'jpeg' => 'image/jpeg',
+		'png' => 'image/png',
+		'gif' => 'image/gif',
+		self::FORMAT_SUFFIX_WEBP => self::MIME_TYPE_WEBP,
+		self::FORMAT_SUFFIX_AVIF => self::MIME_TYPE_AVIF,
+		self::FORMAT_SUFFIX_JXL => self::MIME_TYPE_JXL,
+	];
 
 	/**
 	 * Source image types the resizer opens. Anything else is refused, so ImageMagick never
 	 * parses SVG, MVG, MSL, PDF and other formats with a history of vulnerabilities.
+	 * JXL sources only when the server supports JXL.
 	 */
-	public const array SOURCE_SUFFIXES = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
-	public const array SOURCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+	public const array SOURCE_SUFFIXES = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif', 'jxl'];
+	public const array SOURCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/jxl'];
 
 	private AbstractImagine $imagine;
 	private string $cacheDir;
@@ -116,7 +133,10 @@ final class Resizer implements IResizer
 
 		$suffix = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-		if (!in_array($suffix, self::SOURCE_SUFFIXES, true)) {
+		if (
+			!in_array($suffix, self::SOURCE_SUFFIXES, true)
+			|| ($suffix === self::FORMAT_SUFFIX_JXL && !$this->config->isJxlSupportedByServer())
+		) {
 			throw new ImageNotFoundOrReadableException('Source image type not supported.');
 		}
 

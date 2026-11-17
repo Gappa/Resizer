@@ -6,6 +6,7 @@ namespace Nelson\Resizer\Presenters;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\IResizer;
+use Nelson\Resizer\Resizer;
 use Nelson\Resizer\UrlSigner;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
@@ -91,9 +92,13 @@ final class ResizePresenter extends Presenter
 	}
 
 
+	/**
+	 * By the extension of the thumbnail (it is always written in the format of its extension),
+	 * libmagic may not know newer formats like JPEG XL.
+	 */
 	private function getMimeType(string $filePath): string
 	{
-		$mime = mime_content_type($filePath);
+		$mime = Resizer::MIME_TYPES[strtolower(pathinfo($filePath, PATHINFO_EXTENSION))] ?? mime_content_type($filePath);
 		return $mime === false ? 'application/octet-stream' : $mime;
 	}
 }

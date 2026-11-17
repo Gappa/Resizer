@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Tests;
 
+use Imagick;
 use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
@@ -196,6 +197,49 @@ class ResizerTest extends TestCase
 		clearstatcache();
 
 		$this->assertGreaterThan(time() - 60, filemtime($thumbnail));
+	}
+
+
+	public function testJxlSourceRefusedWithoutServerSupport(): void
+	{
+		// GD can't read JXL, the source is refused before it is opened
+		FileSystem::copy(__DIR__ . '/fixtures/test.png', self::PUBLIC_DIR . '/image.jxl');
+
+		$this->expectException(ImageNotFoundOrReadableException::class);
+		self::$resizer->getSourceImagePath('_public/image.jxl');
+	}
+
+
+	public function testJxlWithImagick(): void
+	{
+		if (!extension_loaded('imagick') || !in_array('JXL', Imagick::queryFormats(), true)) {
+			$this->markTestSkipped('Imagick with JPEG XL support is not available.');
+		}
+
+		$dto = new ResizerConfigDTO;
+		$dto->tempDir = __DIR__ . '/../temp';
+		$dto->wwwDir = __DIR__;
+		$dto->library = 'Imagick';
+		$dto->isJxlSupportedByServer = true;
+		$config = new ResizerConfig($dto);
+		$resizer = new Resizer($config, new OutputFormat(new Request(new UrlScript, headers: ['Accept' => 'image/jxl']), $config));
+
+		foreach (['x100', 'x100-q100'] as $params) {
+			$thumbnail = $resizer->process(self::$image, $params, 'jxl');
+			$this->assertStringEndsWith('.jxl', $thumbnail);
+
+			// JXL codestream or container signature
+			$header = (string) file_get_contents($thumbnail, length: 12);
+			$this->assertTrue(
+				str_starts_with($header, "\xFF\x0A") || $header === "\x00\x00\x00\x0CJXL \x0D\x0A\x87\x0A",
+				"$params: not a JPEG XL file",
+			);
+			$this->assertSame(100, (new Imagick($thumbnail))->getImageHeight());
+		}
+
+		// a JXL source, the browser accepts JXL
+		FileSystem::copy($thumbnail, self::PUBLIC_DIR . '/source.jxl');
+		$this->assertStringEndsWith('/x50.jxl', FileSystem::normalizePath($resizer->process('_public/source.jxl', 'x50')));
 	}
 
 
