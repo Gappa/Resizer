@@ -585,6 +585,60 @@ class ResizerLinkGeneratorTest extends TestCase
 	}
 
 
+	/**
+	 * n:attr escapes the value for HTML only - after decoding (as a browser does) the style is exactly
+	 * the one from getPlaceholderStyle(), including quotes, colons, "#" and the data URI.
+	 */
+	public function testLattePlaceholderNAttrKeepsStyle(): void
+	{
+		[$generator] = $this->create(null);
+
+		foreach (['color', 'blur'] as $mode) {
+			$expected = $generator->getPlaceholderStyle(self::IMAGE, '100x', $mode);
+			$this->assertNotSame('', $expected);
+
+			$html = $this->render($generator, $this->createLinkStub(), "<img n:attr=\"style: rplaceholder('fixtures/test.png', '100x', '$mode')\">");
+
+			$this->assertSame(
+				$expected,
+				self::getDecodedAttribute($html, 'style'),
+				sprintf("Latte %s changed the '%s' placeholder style in n:attr.", Engine::Version, $mode),
+			);
+		}
+	}
+
+
+	/**
+	 * The pitfall the README warns about: in style="{...}" Latte escapes the value for CSS too (backslashes before
+	 * ":", "#", "(", ...), which breaks the declaration. If this test fails, Latte changed the behavior and
+	 * the plain attribute could be documented as well.
+	 */
+	public function testLatteStyleAttributeEscapesCss(): void
+	{
+		[$generator] = $this->create(null);
+		$expected = $generator->getPlaceholderStyle(self::IMAGE, '100x');
+
+		$html = $this->render($generator, $this->createLinkStub(), "<img style=\"{rplaceholder('fixtures/test.png', '100x')}\">");
+		$actual = self::getDecodedAttribute($html, 'style');
+
+		$this->assertNotSame($expected, $actual, sprintf('Latte %s does not CSS-escape style="{...}" anymore.', Engine::Version));
+		$this->assertStringContainsString('\\', $actual);
+	}
+
+
+	/**
+	 * Value of an attribute decoded as a browser does.
+	 */
+	private static function getDecodedAttribute(string $html, string $name): string
+	{
+		if (!preg_match('~\s' . preg_quote($name, '~') . '="([^"]*)"~', $html, $match)) {
+			self::fail("Attribute '$name' not found in: $html");
+		}
+
+		return html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+	}
+
+
 	public function testLatteSrcsetInvalidParams(): void
 	{
 		[$generator] = $this->create(null);
