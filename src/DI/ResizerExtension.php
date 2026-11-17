@@ -6,7 +6,6 @@ namespace Nelson\Resizer\DI;
 use Exception;
 use Gmagick;
 use Imagick;
-use Latte\Engine;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
 use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
@@ -24,9 +23,9 @@ use Nette\Schema\Schema;
 
 final class ResizerExtension extends CompilerExtension
 {
-	public const PRESENTER_MAPPING = 'Resizer';
-	public const PRESENTER = 'Resize';
-	public const ACTION = 'default';
+	public const string PRESENTER_MAPPING = 'Resizer';
+	public const string PRESENTER = 'Resize';
+	public const string ACTION = 'default';
 
 
 	public function getConfigSchema(): Schema
@@ -75,9 +74,6 @@ final class ResizerExtension extends CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		$latteFactoryDef = $this->getLatteFactoryDefinition();
-		$latteFactoryDef->addSetup('addFilter', ['resize', [$this->prefix('@default'), 'resize']]);
-
-		// Latte 3.x
 		$latteFactoryDef->addSetup('addExtension', [
 			new Statement(LatteResizerExtension::class, [$this->prefix('@linkGenerator')]),
 		]);
@@ -102,23 +98,12 @@ final class ResizerExtension extends CompilerExtension
 
 	private function isFormatSupported(ResizerConfigDTO $config, string $gd, string $imagick, string $gmagick): bool
 	{
-		$support = false;
-
-		switch ($config->library) {
-			case 'Gd':
-				$support = function_exists('gd_info') && !empty(gd_info()[$gd]);
-				break;
-
-			case 'Imagick':
-				$support = extension_loaded('imagick') && in_array($imagick, Imagick::queryFormats(), true);
-				break;
-
-			case 'Gmagick':
-				$support = extension_loaded('gmagick') && in_array($gmagick, (new Gmagick)->queryformats(), true);
-				break;
-		}
-
-		return $support;
+		return match ($config->library) {
+			'Gd' => function_exists('gd_info') && !empty(gd_info()[$gd]),
+			'Imagick' => extension_loaded('imagick') && in_array($imagick, Imagick::queryFormats(), true),
+			'Gmagick' => extension_loaded('gmagick') && in_array($gmagick, (new Gmagick)->queryformats(), true),
+			default => false,
+		};
 	}
 
 

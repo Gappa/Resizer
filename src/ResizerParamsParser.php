@@ -4,24 +4,21 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
-use Nette\SmartObject;
 
-class ResizerParamsParser
+final class ResizerParamsParser
 {
-	use SmartObject;
+	public const string PATTERN_IR = 'ir/';
+	public const string PATTERN_AUTO = '?:auto'; 										# use the image as-is, only compress/convert
+	public const string PATTERN_IFRESIZE = '(?:(ifresize)-)?';					# ifresize modifier
+	public const string PATTERN_WIDTH_MOD = '([lcr]?)([1-9][0-9]{0,4})?';			# width modifier and dimension (max. 5 digits)
+	public const string PATTERN_DIVIDER = 'x';											# divider
+	public const string PATTERN_HEIGHT_MOD = '([tcb]?)([1-9][0-9]{0,4})?';			# height modifier and dimension (max. 5 digits)
+	public const string PATTERN_FORCE_DIMS = '(!?)';									# force dimensions, disregard aspect ratio
+	public const string PATTERN_MARGIN_H = '(?:-hm([+-]?[0-9]*))?';				# horizontal margin, unused
+	public const string PATTERN_MARGIN_V = '(?:-vm([+-]?[0-9]*))?';				# vertical margin, unused
+	public const string PATTERN_MARGIN_Q = '(?:-q([0-9][0-9]?|100))?';			# quality, 0-100
 
-	public const PATTERN_IR = 'ir/';
-	public const PATTERN_AUTO = '?:auto'; 										# use the image as-is, only compress/convert
-	public const PATTERN_IFRESIZE = '(?:(ifresize)-)?';					# ifresize modifier
-	public const PATTERN_WIDTH_MOD = '([lcr]?)([1-9][0-9]{0,4})?';			# width modifier and dimension (max. 5 digits)
-	public const PATTERN_DIVIDER = 'x';											# divider
-	public const PATTERN_HEIGHT_MOD = '([tcb]?)([1-9][0-9]{0,4})?';			# height modifier and dimension (max. 5 digits)
-	public const PATTERN_FORCE_DIMS = '(!?)';									# force dimensions, disregard aspect ratio
-	public const PATTERN_MARGIN_H = '(?:-hm([+-]?[0-9]*))?';				# horizontal margin, unused
-	public const PATTERN_MARGIN_V = '(?:-vm([+-]?[0-9]*))?';				# vertical margin, unused
-	public const PATTERN_MARGIN_Q = '(?:-q([0-9][0-9]?|100))?';			# quality, 0-100
-
-	public const PATTERN_PARAMS = '(' .
+	public const string PATTERN_PARAMS = '(' .
 		self::PATTERN_AUTO . '|' .
 		self::PATTERN_IFRESIZE .
 		self::PATTERN_WIDTH_MOD .
@@ -33,21 +30,8 @@ class ResizerParamsParser
 		self::PATTERN_MARGIN_Q .
 	')';
 
-	public const PATTERN = '~^' . self::PATTERN_PARAMS . '$~';
-	public const PATTERN_JS = self::PATTERN_PARAMS;
-
-	// public const PATTERN = '~
-	// 	^(?:auto|                        # use the image as-is, only compress/convert
-	// 		(?:(ifresize)-)?              # ifresize modifier
-	// 		([lcr]?)([1-9][0-9]*)?        # width modifer and dimension
-	// 		x                             # divider
-	// 		([tcb]?)([1-9][0-9]*)?        # height modifier and dimension
-	// 		(!?)                          # force dimensions, disregard aspect ratio
-	// 		(?:-hm([+-]?[0-9]*))?         # horizontal margin, unused
-	// 		(?:-vm([+-]?[0-9]*))?         # vertical margin, unused
-	// 		(?:-q([0-9][0-9]?|100))?      # quality, 0-100
-	// 	)$
-	// ~x';
+	public const string PATTERN = '~^' . self::PATTERN_PARAMS . '$~';
+	public const string PATTERN_JS = self::PATTERN_PARAMS;
 
 	private ResizerParams $params;
 

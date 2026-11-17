@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Nelson\Resizer\Latte;
 
 use Latte\Compiler\Nodes\Php\Expression\ArrayNode;
-use Latte\Compiler\Nodes\Php\ExpressionNode;
 use Latte\Compiler\Nodes\Php\ModifierNode;
 use Latte\Compiler\Nodes\StatementNode;
 use Latte\Compiler\PrintContext;
@@ -17,15 +16,14 @@ use stdClass;
 final class RlinkNode extends StatementNode
 {
 	/** Name of the Latte provider holding ResizerLinkGenerator */
-	public const PROVIDER = 'resizerLinkGenerator';
+	public const string PROVIDER = 'resizerLinkGenerator';
 
-	public ExpressionNode $destination;
 	public ArrayNode $args;
 	public ModifierNode $modifier;
 	public string $mode;
 
 
-	public static function create(Tag $tag): ?static
+	public static function create(Tag $tag): static
 	{
 		$tag->outputMode = $tag::OutputKeepIndentation;
 		$tag->expectArguments();
@@ -37,16 +35,6 @@ final class RlinkNode extends StatementNode
 		$node->modifier->escape = true;
 		$node->modifier->check = false;
 		$node->mode = $tag->name;
-
-		if ($tag->isNAttribute()) {
-			$children = $tag->htmlElement?->attributes?->children;
-
-			if ($children !== null) {
-				// move at the beginning
-				array_unshift($children, $node);
-				return null;
-			}
-		}
 
 		return $node;
 	}

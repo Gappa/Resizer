@@ -5,12 +5,9 @@ namespace Nelson\Resizer;
 
 use Nelson\Resizer\Exceptions\UnsupportedFormatException;
 use Nette\Http\Request;
-use Nette\SmartObject;
 
 final class OutputFormat
 {
-	use SmartObject;
-
 	private bool $browserSupportsWebp;
 	private bool $browserSupportsAvif;
 

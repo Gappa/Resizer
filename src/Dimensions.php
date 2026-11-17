@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-class Dimensions
+final class Dimensions
 {
 	/**
 	 * @param positive-int $width

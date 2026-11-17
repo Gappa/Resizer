@@ -5,14 +5,10 @@ namespace Nelson\Resizer;
 
 use Exception;
 use Nelson\Resizer\DI\ResizerConfigDTO;
-use Nette\SmartObject;
 use Nette\Utils\FileSystem;
 
 final class ResizerConfig
 {
-
-	use SmartObject;
-
 	/** @var array<int, string> */
 	private array $supportedFormats = [
 		'jpeg',
@@ -200,17 +196,23 @@ final class ResizerConfig
 	 */
 	public function getOptions(?int $quality = null): array
 	{
-
-		if ($quality !== null) {
-			/** @var int<0, 9> $qualityPng */
-			$qualityPng = (int) round($this->remapRange($quality, 0, 100, 0, 9));
+		if ($quality === null) {
+			return [
+				'avif_quality' => $this->getQualityAvif(),
+				'webp_quality' => $this->getQualityWebp(),
+				'jpeg_quality' => $this->getQualityJpeg(),
+				'png_compression_level' => $this->getCompressionPng(),
+			];
 		}
 
+		/** @var int<0, 9> $compressionPng PNG is lossless, quality 0-100 maps to compression level 0-9 */
+		$compressionPng = (int) round($quality * 9 / 100);
+
 		return [
-			'avif_quality' => $quality ?? $this->getQualityAvif() ,
-			'webp_quality' => $quality ?? $this->getQualityWebp(),
-			'jpeg_quality' => $quality ?? $this->getQualityJpeg(),
-			'png_compression_level' => $qualityPng ?? $this->getCompressionPng(),
+			'avif_quality' => $quality,
+			'webp_quality' => $quality,
+			'jpeg_quality' => $quality,
+			'png_compression_level' => $compressionPng,
 		];
 	}
 
@@ -236,55 +238,6 @@ final class ResizerConfig
 		}
 
 		return substr($public, strlen($www));
-	}
-
-
-	/**
-	 * @see https://stackoverflow.com/a/36244586/2458557
-	 */
-	private function remapRange(
-		int $intValue,
-		int $oMin,
-		int $oMax,
-		int $nMin,
-		int $nMax
-	): float {
-		// Range check
-		if ($oMin === $oMax) {
-			throw new Exception('Warning: Zero input range');
-		}
-
-		if ($nMin === $nMax) {
-			throw new Exception('Warning: Zero output range');
-		}
-
-		// Check reversed input range
-		$bReverseInput = false;
-		$intOldMin = min($oMin, $oMax);
-		$intOldMax = max($oMin, $oMax);
-		if ($intOldMin !== $oMin) {
-			$bReverseInput = true;
-		}
-
-		// Check reversed output range
-		$bReverseOutput = false;
-		$intNewMin = min($nMin, $nMax);
-		$intNewMax = max($nMin, $nMax);
-		if ($intNewMin !== $nMin) {
-			$bReverseOutput = true;
-		}
-
-		$fRatio = ($intValue - $intOldMin) * ($intNewMax - $intNewMin) / ($intOldMax - $intOldMin);
-		if ($bReverseInput) {
-			$fRatio = ($intOldMax - $intValue) * ($intNewMax - $intNewMin) / ($intOldMax - $intOldMin);
-		}
-
-		$fResult = $fRatio + $intNewMin;
-		if ($bReverseOutput) {
-			$fResult = $intNewMax - $fRatio;
-		}
-
-		return $fResult;
 	}
 
 }

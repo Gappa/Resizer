@@ -16,7 +16,7 @@ use Throwable;
 final class ResizerLinkGenerator
 {
 	/** Default value of the params route parameter */
-	public const PARAMS_AUTO = 'auto';
+	public const string PARAMS_AUTO = 'auto';
 
 
 	public function __construct(

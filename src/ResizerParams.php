@@ -3,9 +3,8 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-class ResizerParams
+final class ResizerParams
 {
-
 	/**
 	 * @param positive-int|null $width
 	 * @param positive-int|null $height
@@ -25,7 +24,7 @@ class ResizerParams
 	}
 
 
-	public function isIfresize(): bool
+	public function isIfResize(): bool
 	{
 		return $this->ifresize;
 	}

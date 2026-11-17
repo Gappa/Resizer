@@ -5,12 +5,9 @@ namespace Nelson\Resizer;
 
 use Imagine\Image\Point;
 use Nelson\Resizer\Exceptions\IncompatibleResizerParamsException;
-use Nette\SmartObject;
 
 final class Geometry
 {
-	use SmartObject;
-
 	private ResizerParams $resizerParams;
 
 
@@ -36,6 +33,10 @@ final class Geometry
 			throw new IncompatibleResizerParamsException('Crop and IfResize can not be used together.');
 		}
 
+		if ($rp->isCrop() && !$rp->hasBothDimensions()) {
+			throw new IncompatibleResizerParamsException('Crop requires both width and height.');
+		}
+
 		// No dimensions set, use fallback
 		if ($rp->hasNoDimensions()) {
 			return $input;
@@ -46,6 +47,19 @@ final class Geometry
 			return new Dimensions(
 				Helpers::getPositiveInt($rp->getWidth()),
 				Helpers::getPositiveInt($rp->getHeight()),
+			);
+		}
+
+		// Crop: scale so the image covers the whole crop box. Computed directly from the input dimensions
+		// and clamped, so rounding can never make the image smaller than the crop box.
+		if ($rp->isCrop()) {
+			$cropWidth = Helpers::getPositiveInt($rp->getWidth());
+			$cropHeight = Helpers::getPositiveInt($rp->getHeight());
+			$scale = max($cropWidth / $input->getWidth(), $cropHeight / $input->getHeight());
+
+			return new Dimensions(
+				max($cropWidth, (int) round($input->getWidth() * $scale)),
+				max($cropHeight, (int) round($input->getHeight() * $scale)),
 			);
 		}
 
@@ -71,29 +85,14 @@ final class Geometry
 			$outputRatio = $inputRatio;
 		}
 
+		// an extreme aspect ratio must not round a side down to zero
 		$output = new Dimensions(
-			Helpers::getPositiveInt((int) round($input->getWidth() * $outputRatio)),
-			Helpers::getPositiveInt((int) round($input->getHeight() * $outputRatio)),
+			max(1, (int) round($input->getWidth() * $outputRatio)),
+			max(1, (int) round($input->getHeight() * $outputRatio)),
 		);
 
-		// Need to scale up to make room for the crop again
-		if ($rp->isCrop()) {
-			if ($output->getWidth() === $rp->getWidth()) {
-				$width = $output->getWidth() * $rp->getHeight() / $output->getHeight();
-				$height = Helpers::getPositiveInt($rp->getHeight());
-			} else {
-				$width = Helpers::getPositiveInt($rp->getWidth());
-				$height = $output->getHeight() * $rp->getWidth() / $output->getWidth();
-			}
-
-			$output = new Dimensions(
-				Helpers::getPositiveInt((int) round($width)),
-				Helpers::getPositiveInt((int) round($height)),
-			);
-		}
-
 		// If the image is smaller than the desired size, hijack the process
-		if ($rp->isIfresize()
+		if ($rp->isIfResize()
 			&& (
 				$rp->getWidth() > $input->getWidth() && $rp->getHeight() > $input->getHeight()
 				||
@@ -111,36 +110,21 @@ final class Geometry
 
 	public function getCropPoint(Dimensions $source): Point
 	{
-		switch ($this->resizerParams->getHorizontal()) {
-			case 'c':
-				$x = ($source->getWidth() - $this->resizerParams->getWidth()) / 2;
-				break;
+		$overflowX = max(0, $source->getWidth() - (int) $this->resizerParams->getWidth());
+		$overflowY = max(0, $source->getHeight() - (int) $this->resizerParams->getHeight());
 
-			case 'r':
-				$x = $source->getWidth() - $this->resizerParams->getWidth();
-				break;
+		$x = match ($this->resizerParams->getHorizontal()) {
+			'c' => intdiv($overflowX, 2),
+			'r' => $overflowX,
+			default => 0,
+		};
 
-			case 'l':
-			default:
-				$x = 0;
-				break;
-		}
+		$y = match ($this->resizerParams->getVertical()) {
+			'c' => intdiv($overflowY, 2),
+			'b' => $overflowY,
+			default => 0,
+		};
 
-		switch ($this->resizerParams->getVertical()) {
-			case 'c':
-				$y = ($source->getHeight() - $this->resizerParams->getHeight()) / 2;
-				break;
-
-			case 'b':
-				$y = $source->getHeight() - $this->resizerParams->getHeight();
-				break;
-
-			case 't':
-			default:
-				$y = 0;
-				break;
-		}
-
-		return new Point((int) $x, (int) $y);
+		return new Point($x, $y);
 	}
 }

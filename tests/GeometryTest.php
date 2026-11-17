@@ -51,7 +51,7 @@ class GeometryTest extends TestCase
 	public function testCrop1(): void
 	{
 		$this->assertEquals(
-			$this->expected(266, 150),
+			$this->expected(267, 150),
 			$this->actual('c250xc150'),
 		);
 	}
@@ -60,7 +60,7 @@ class GeometryTest extends TestCase
 	public function testCrop2(): void
 	{
 		$this->assertEquals(
-			$this->expected(266, 150),
+			$this->expected(267, 150),
 			$this->actual('l250xt150'),
 		);
 	}
@@ -69,7 +69,7 @@ class GeometryTest extends TestCase
 	public function testCrop3(): void
 	{
 		$this->assertEquals(
-			$this->expected(266, 150),
+			$this->expected(267, 150),
 			$this->actual('r250xb150'),
 		);
 	}
@@ -108,6 +108,41 @@ class GeometryTest extends TestCase
 		$this->expectException(IncompatibleResizerParamsException::class);
 
 		$this->actual('ifresize-c2500xc1500');
+	}
+
+
+	public function testExtremeAspectRatioDoesNotRoundToZero(): void
+	{
+		$this->assertEquals(
+			$this->expected(1, 1),
+			(new Geometry('x1'))->calculateNewSize(new Dimensions(7, 1999)),
+		);
+	}
+
+
+	public function testCropWithoutBothDimensions(): void
+	{
+		$this->expectException(IncompatibleResizerParamsException::class);
+
+		$this->actual('cxc150');
+	}
+
+
+	/** Rounding must never make the scaled image smaller than the crop box */
+	public function testCropCoversCropBox(): void
+	{
+		foreach ([[1600, 900], [333, 777], [1001, 999], [4000, 3], [7, 1999]] as [$sourceWidth, $sourceHeight]) {
+			foreach ([[250, 150], [1, 1], [999, 1001], [123, 457], [1600, 1]] as [$cropWidth, $cropHeight]) {
+				$output = (new Geometry("c{$cropWidth}xc{$cropHeight}"))
+					->calculateNewSize(new Dimensions($sourceWidth, $sourceHeight));
+
+				$message = "{$sourceWidth}x{$sourceHeight} -> c{$cropWidth}xc{$cropHeight}";
+				$this->assertGreaterThanOrEqual($cropWidth, $output->getWidth(), $message);
+				$this->assertGreaterThanOrEqual($cropHeight, $output->getHeight(), $message);
+				// one side matches the crop box exactly
+				$this->assertTrue($output->getWidth() === $cropWidth || $output->getHeight() === $cropHeight, $message);
+			}
+		}
 	}
 
 
