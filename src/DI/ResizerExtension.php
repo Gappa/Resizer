@@ -42,7 +42,7 @@ final class ResizerExtension extends CompilerExtension
 			'formatPriority' => Expect::listOf(Expect::anyOf('jxl', 'webp', 'avif'))
 				->default(['jxl', 'webp', 'avif'])
 				->mergeDefaults(false)
-				->assert(static fn(mixed $list): bool => is_array($list) && count($list) === count(array_unique($list)), 'Formats must not repeat'),
+				->assert(self::isListOfUniqueStrings(...), 'Formats must not repeat'),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);
@@ -96,6 +96,26 @@ final class ResizerExtension extends CompilerExtension
 			$service = $builder->getDefinition($presenterMapper);
 			$service->addSetup('setMapping', [$mapping]);
 		}
+	}
+
+
+	private static function isListOfUniqueStrings(mixed $list): bool
+	{
+		if (!is_array($list)) {
+			return false;
+		}
+
+		$seen = [];
+
+		foreach ($list as $item) {
+			if (!is_string($item) || isset($seen[$item])) {
+				return false;
+			}
+
+			$seen[$item] = true;
+		}
+
+		return true;
 	}
 
 
