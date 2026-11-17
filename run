@@ -2,7 +2,7 @@
 
 # Define vars
 MAINTENANCE_FILE=".maintenance";
-PHP="php85"
+PHP="php8.5"
 COMPOSER_INSTALL_COMMAND_DEV="$PHP composer.phar install";
 
 PHP="$PHP";
