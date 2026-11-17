@@ -260,6 +260,8 @@ final class Resizer implements IResizer
 
 	/**
 	 * The thumbnail exists and is not older than the source image (a changed source is regenerated).
+	 * Impure: another request may create the thumbnail between two calls.
+	 * @phpstan-impure
 	 */
 	private function isThumbnailFresh(string $thumbnailPath, string $sourceImagePath): bool
 	{
