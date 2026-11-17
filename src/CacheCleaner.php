@@ -152,7 +152,7 @@ final class CacheCleaner
 
 
 	/**
-	 * @param RecursiveIteratorIterator::* $mode
+	 * @param RecursiveIteratorIterator::LEAVES_ONLY|RecursiveIteratorIterator::SELF_FIRST|RecursiveIteratorIterator::CHILD_FIRST $mode
 	 * @return RecursiveIteratorIterator<RecursiveDirectoryIterator>
 	 */
 	private function iterate(string $dir, int $mode): RecursiveIteratorIterator
