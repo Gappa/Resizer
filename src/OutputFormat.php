@@ -55,7 +55,7 @@ final class OutputFormat
 	/** @param list<string> $browserFormats */
 	private function resolve(string $file, ?string $format, array $browserFormats): string
 	{
-		$format = strtolower($format ?? $this->negotiate($this->getFileFormat($file), $browserFormats));
+		$format = strtolower($format ?? $this->negotiate($this->getSourceFormat($file), $browserFormats));
 		$this->assertFormatSupported($format);
 		return $format;
 	}
@@ -124,7 +124,10 @@ final class OutputFormat
 	}
 
 
-	private function getFileFormat(string $file): string
+	/**
+	 * Format of the source file by its suffix (all JPEG suffixes are "jpg").
+	 */
+	public function getSourceFormat(string $file): string
 	{
 		$suffix = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 

@@ -204,9 +204,39 @@ Absolute, uses diffent tag:
 - `<img src="{rlinkabs 'test.jpg', 'l400xc200'}">`
 - `<a href="{rlinkabs 'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`
 
+# Responsive images
+
+`{rsrcset}` prints the value of a `srcset` attribute with width descriptors. The widths are the real widths
+of the thumbnails (read from the source header, EXIF orientation included), so e.g. `ifresize-` on a small image
+does not produce duplicate entries:
+
+``` latte
+<img src="{rlink 'photo.jpg', '800x'}" srcset="{rsrcset 'photo.jpg', ['400x', '800x', '1200x']}" sizes="100vw" alt="">
+```
+
+`{rpicture}` prints a whole `<picture>`: a `<source>` for each modern format (`formatPriority` order) the server
+supports and the upgrade of the source format is enabled for, and an `<img>` in the original format with `srcset`,
+`width` and `height`. The last params are used for the `src`. Named arguments are attributes of the `<img>`
+(`sizes` goes to the sources too, `true` = attribute without a value, `null`/`false` = omitted). The format of each
+source is explicit, so it works in static mode too - the way to serve JPEG XL there:
+
+``` latte
+{rpicture 'photo.jpg', ['400x', '800x', '1200x'], sizes: '(min-width: 800px) 50vw, 100vw', alt: $title, loading: lazy}
+```
+
+`rsize()` returns the dimensions of a thumbnail without generating it, e.g. for `width`/`height` attributes
+(prevents layout shifts); `null` when they can't be determined:
+
+``` latte
+{var $size = rsize('photo.jpg', 'c400xc300')}
+<img src="{rlink 'photo.jpg', 'c400xc300'}" width={$size?->getWidth()} height={$size?->getHeight()} alt="">
+```
+
+In PHP: `ResizerLinkGenerator::srcset()`, `picture()` and `getDimensions()`.
+
 # Security
 
-- Only `jpg`, `jpeg`, `jfif`, `png`, `gif`, `webp` and `avif` source images inside `wwwDir` are processed, the MIME type
+- Only `jpg`, `jpeg`, `jfif`, `png`, `gif`, `webp`, `avif` and `jxl` source images inside `wwwDir` are processed, the MIME type
   is checked too. Paths with `..` segments, backslashes or NUL bytes are refused. Symlinks inside `wwwDir` are followed.
 - Requested dimensions are limited by `maxWidth`/`maxHeight` (default 4000 px, max. 5 digits in the URL).
 - Invalid requests get HTTP 400, missing images HTTP 404, without details of the error.
@@ -229,4 +259,5 @@ Absolute, uses diffent tag:
   for the previous behavior. JPEG XL support is new, disabled by default.
 - `OutputFormat` accepts `Nette\Http\IRequest`; the `Accept` header is parsed properly (`q=0` means not supported).
 - `ResizePresenter` sends the Content-Type by the extension of the thumbnail (libmagic may not know JPEG XL).
+- `IResizer::getOutputDimensions()` was added (implement it in custom resizers).
 - New `UrlSigner` service, a new constructor argument of `ResizerLinkGenerator` and `ResizePresenter` (autowired in DI).

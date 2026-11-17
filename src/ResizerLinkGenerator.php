@@ -92,6 +92,142 @@ final class ResizerLinkGenerator
 
 
 	/**
+	 * Dimensions of the thumbnail (for width/height attributes), null when they can't be determined.
+	 */
+	public function getDimensions(string $file, ?string $params = null): ?Dimensions
+	{
+		return $this->resizer->getOutputDimensions($file, $params);
+	}
+
+
+	/**
+	 * Value of the srcset attribute: a link with the width descriptor for each params. The widths are the real
+	 * ones of the thumbnails (e.g. ifresize on a small image), entries with an already used or unknown width
+	 * are skipped.
+	 * @param list<string> $paramsList
+	 */
+	public function srcset(
+		Component|LinkGenerator $linker,
+		string $file,
+		array $paramsList,
+		?string $format = null,
+		bool $absolute = false,
+	): string {
+		$entries = [];
+
+		foreach ($paramsList as $params) {
+			$width = $this->getDimensions($file, $params)?->getWidth();
+
+			if ($width !== null && !isset($entries[$width])) {
+				$entries[$width] = $this->link($linker, $file, $params, $format, $absolute) . ' ' . $width . 'w';
+			}
+		}
+
+		return implode(', ', $entries);
+	}
+
+
+	/**
+	 * HTML of a <picture> element: a <source> for each modern format (formatPriority order) the server
+	 * supports and the upgrade of the source format is enabled for (WEBP/AVIF/JXL sources: their own format
+	 * first), and an <img> in the original format (JPEG for WEBP/AVIF/JXL sources) with width and height.
+	 * Works in static mode too, the format of each source is explicit.
+	 * @param list<string> $paramsList the last one is used for the src of the <img>
+	 * @param array<string, scalar|null> $attributes of the <img> ("sizes" goes to the sources too);
+	 *     true = attribute without a value, false/null = omitted
+	 */
+	public function picture(
+		Component|LinkGenerator $linker,
+		string $file,
+		array $paramsList,
+		array $attributes = [],
+		bool $absolute = false,
+	): string {
+		$sourceFormat = $this->outputFormat->getSourceFormat($file);
+		$fallbackFormat = in_array($sourceFormat, Resizer::MODERN_FORMATS, true) ? Resizer::FORMAT_SUFFIX_JPG : $sourceFormat;
+		$sizes = $attributes['sizes'] ?? null;
+		$html = '<picture>';
+
+		foreach ($this->getPictureFormats($sourceFormat) as $format) {
+			$srcset = $this->srcset($linker, $file, $paramsList, $format, $absolute);
+
+			if ($srcset !== '') {
+				$html .= '<source' . self::formatAttributes([
+					'type' => Resizer::MIME_TYPES[$format],
+					'srcset' => $srcset,
+					'sizes' => $sizes,
+				]) . '>';
+			}
+		}
+
+		$default = $paramsList === [] ? null : $paramsList[array_key_last($paramsList)];
+		$dimensions = $this->getDimensions($file, $default);
+		$srcset = $this->srcset($linker, $file, $paramsList, $fallbackFormat, $absolute);
+
+		// the given attributes override the defaults (except src and srcset), the order of the defaults is kept
+		$html .= '<img' . self::formatAttributes(array_replace([
+			'src' => $this->link($linker, $file, $default, $fallbackFormat, $absolute),
+			'srcset' => $srcset === '' ? null : $srcset,
+			'width' => $dimensions?->getWidth(),
+			'height' => $dimensions?->getHeight(),
+			'alt' => '',
+		], array_diff_key($attributes, ['src' => true, 'srcset' => true]))) . '>';
+
+		return $html . '</picture>';
+	}
+
+
+	/**
+	 * Modern formats for <source> elements of a <picture>, in the order of preference.
+	 * @return list<string>
+	 */
+	private function getPictureFormats(string $sourceFormat): array
+	{
+		$formats = [];
+		$isModernSource = in_array($sourceFormat, Resizer::MODERN_FORMATS, true);
+
+		if ($isModernSource && $this->config->isFormatSupportedByServer($sourceFormat)) {
+			$formats[] = $sourceFormat;
+		}
+
+		foreach ($this->config->getFormatPriority() as $format) {
+			if (
+				!in_array($format, $formats, true)
+				&& $this->config->isFormatSupportedByServer($format)
+				&& ($isModernSource || $this->config->canUpgrade($sourceFormat, $format))
+			) {
+				$formats[] = $format;
+			}
+		}
+
+		return $formats;
+	}
+
+
+	/**
+	 * @param array<string, scalar|null> $attributes
+	 */
+	private static function formatAttributes(array $attributes): string
+	{
+		$html = '';
+
+		foreach ($attributes as $name => $value) {
+			if ($value === null || $value === false) {
+				continue;
+			}
+
+			$html .= ' ' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5 | ENT_SUBSTITUTE, 'UTF-8');
+
+			if ($value !== true) {
+				$html .= '="' . htmlspecialchars((string) $value, ENT_QUOTES | ENT_HTML5 | ENT_SUBSTITUTE, 'UTF-8') . '"';
+			}
+		}
+
+		return $html;
+	}
+
+
+	/**
 	 * Rewrites dynamic resizer URLs in HTML (e.g. rich text content with stored "/ir/..." links):
 	 * an existing thumbnail gets its static URL, a missing one gets the format filled in,
 	 * so the thumbnail it generates is found next time. With signing enabled (in static mode or not)

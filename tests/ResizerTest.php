@@ -273,6 +273,40 @@ class ResizerTest extends TestCase
 	}
 
 
+	public function testOutputDimensions(): void
+	{
+		$dimensions = static function (?string $params, string $file = 'fixtures/test.png'): ?array {
+			$output = self::$resizer->getOutputDimensions($file, $params);
+			return $output === null ? null : [$output->getWidth(), $output->getHeight()];
+		};
+
+		// the source is 500x500
+		$this->assertSame([100, 100], $dimensions('100x'));
+		$this->assertSame([100, 50], $dimensions('c100xc50'));
+		$this->assertSame([1000, 1000], $dimensions('1000x'));
+		$this->assertSame([500, 500], $dimensions('ifresize-1000x'));
+		$this->assertSame([500, 500], $dimensions(null));
+		$this->assertNull($dimensions('nonsense'));
+		$this->assertNull($dimensions('ifresize-c10xc10'));
+		$this->assertNull($dimensions('100x', 'does_not_exist.png'));
+		$this->assertNull($dimensions('100x', '../composer.json'));
+	}
+
+
+	public function testOutputDimensionsWithExifOrientation(): void
+	{
+		if (!function_exists('exif_read_data')) {
+			$this->markTestSkipped('ext-exif is required to read the orientation with GD.');
+		}
+
+		// 200x100 pixels, displayed as 100x200
+		self::createJpegWithOrientation(self::PUBLIC_DIR . '/rotated-dimensions.jpg', 6);
+		$dimensions = self::$resizer->getOutputDimensions('_public/rotated-dimensions.jpg', '50x');
+
+		$this->assertSame([50, 100], [$dimensions?->getWidth(), $dimensions?->getHeight()]);
+	}
+
+
 	public function testPngIsNotInterlaced(): void
 	{
 		// interlace: true is the default, Adam7 would make the PNG bigger

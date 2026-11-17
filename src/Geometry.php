@@ -109,6 +109,24 @@ final class Geometry
 
 
 	/**
+	 * Dimensions of the final thumbnail: the crop box for a crop, otherwise the resized image.
+	 */
+	public function getOutputDimensions(Dimensions $source): Dimensions
+	{
+		$resized = $this->calculateNewSize($source); // validates the params too
+
+		if (!$this->resizerParams->isCrop() || $this->resizerParams->getForceDimensions()) {
+			return $resized;
+		}
+
+		return new Dimensions(
+			Helpers::getPositiveInt($this->resizerParams->getWidth()),
+			Helpers::getPositiveInt($this->resizerParams->getHeight()),
+		);
+	}
+
+
+	/**
 	 * Minimum size (a square side) the source has to be decoded at, so a JPEG decoder can scale it down
 	 * while decoding (libjpeg DCT scaling, ImageMagick "jpeg:size") - much faster for large photos.
 	 * Twice the output size keeps the quality of the final resize. Both orientations are considered,

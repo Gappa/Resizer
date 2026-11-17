@@ -466,10 +466,112 @@ class ResizerLinkGeneratorTest extends TestCase
 	}
 
 
-	/** @return array{ResizerLinkGenerator, Resizer} */
-	private function create(?string $publicCacheDir, bool $webp = false, ?string $secret = null): array
+	public function testSrcset(): void
 	{
-		$config = $this->getConfig($publicCacheDir, $webp, $secret);
+		[$generator] = $this->create(null);
+
+		// the source is 500x500: ifresize-600x and ifresize-700x are both 500 wide, the second one is skipped
+		$this->assertSame(
+			'/ir/100x/fixtures/test.png 100w, /ir/200x/fixtures/test.png 200w, /ir/ifresize-600x/fixtures/test.png 500w',
+			$generator->srcset($this->createLinkStub(), self::IMAGE, ['100x', '200x', 'ifresize-600x', 'ifresize-700x']),
+		);
+
+		$this->assertSame(
+			'/ir/c100xc50/fixtures/test.png?format=webp 100w',
+			$generator->srcset($this->createLinkStub(), self::IMAGE, ['c100xc50'], 'webp'),
+		);
+
+		// unknown dimensions: no entries
+		$this->assertSame('', $generator->srcset($this->createLinkStub(), 'does_not_exist.png', ['100x']));
+	}
+
+
+	public function testPicture(): void
+	{
+		[$generator] = $this->create(null, webp: true, overrides: ['isJxlSupportedByServer' => true, 'upgradePng2Jxl' => true]);
+
+		$this->assertSame(
+			'<picture>'
+			// formatPriority order (jxl, webp, avif), AVIF is not supported by the server
+			. '<source type="image/jxl" srcset="/ir/100x/fixtures/test.png?format=jxl 100w, /ir/200x/fixtures/test.png?format=jxl 200w" sizes="50vw">'
+			. '<source type="image/webp" srcset="/ir/100x/fixtures/test.png?format=webp 100w, /ir/200x/fixtures/test.png?format=webp 200w" sizes="50vw">'
+			// the original format, the last params for src, width/height; null attributes are omitted
+			. '<img src="/ir/200x/fixtures/test.png?format=png"'
+			. ' srcset="/ir/100x/fixtures/test.png?format=png 100w, /ir/200x/fixtures/test.png?format=png 200w"'
+			. ' width="200" height="200" alt="A &quot;test&quot;" sizes="50vw" loading="lazy" data-zoom>'
+			. '</picture>',
+			$generator->picture($this->createLinkStub(), self::IMAGE, ['100x', '200x'], [
+				'sizes' => '50vw',
+				'alt' => 'A "test"',
+				'loading' => 'lazy',
+				'class' => null,
+				'data-zoom' => true,
+			]),
+		);
+	}
+
+
+	public function testPictureWithoutModernFormats(): void
+	{
+		// PNG upgrades to JXL disabled by default, WEBP not supported by the server
+		[$generator] = $this->create(null, overrides: ['isJxlSupportedByServer' => true]);
+
+		$this->assertSame(
+			'<picture><img src="/ir/c80xc40/fixtures/test.png?format=png" srcset="/ir/c80xc40/fixtures/test.png?format=png 80w"'
+			. ' width="80" height="40" alt=""></picture>',
+			$generator->picture($this->createLinkStub(), self::IMAGE, ['c80xc40']),
+		);
+	}
+
+
+	public function testLatteSrcsetPictureAndSize(): void
+	{
+		[$generator] = $this->create(null);
+
+		$this->assertSame(
+			'/ir/100x/fixtures/test.png 100w, /ir/200x/fixtures/test.png 200w'
+			. '|<picture><img src="/ir/100x/fixtures/test.png?format=png" srcset="/ir/100x/fixtures/test.png?format=png 100w" width="100" height="100" alt="x"></picture>'
+			. '|80x40',
+			$this->render(
+				$generator,
+				$this->createLinkStub(),
+				"{rsrcset 'fixtures/test.png', ['100x', '200x']}"
+				. "|{rpicture 'fixtures/test.png', ['100x'], alt: 'x'}"
+				. "|{var \$size = rsize('fixtures/test.png', 'c80xc40')}{\$size->getWidth()}x{\$size->getHeight()}",
+			),
+		);
+	}
+
+
+	public function testLatteSrcsetInvalidParams(): void
+	{
+		[$generator] = $this->create(null);
+
+		$this->expectException(\Nette\InvalidArgumentException::class);
+		$this->render($generator, $this->createLinkStub(), "{rsrcset 'fixtures/test.png', '100x'}");
+	}
+
+
+	/** Link stub building "/ir/<params>/<file>?format=<format>" from the link() arguments */
+	private function createLinkStub(): Control
+	{
+		$control = $this->createStub(Control::class);
+		$control->method('link')->willReturnCallback(
+			static fn(string $destination, array $args): string => '/ir/' . $args[1] . '/' . $args[0]
+				. (isset($args[2]) ? '?format=' . $args[2] : ''),
+		);
+
+		return $control;
+	}
+
+
+	/**
+	 * @param array<string, mixed> $overrides ResizerConfigDTO properties
+	 * @return array{ResizerLinkGenerator, Resizer}
+	 */
+	private function create(?string $publicCacheDir, bool $webp = false, ?string $secret = null, array $overrides = []): array
+	{
+		$config = $this->getConfig($publicCacheDir, $webp, $secret, $overrides);
 		$httpRequest = new Request(new UrlScript('https://example.com/web/index.php', '/web/index.php'));
 		$outputFormat = new OutputFormat($httpRequest, $config);
 		$resizer = new Resizer($config, $outputFormat);
@@ -478,7 +580,8 @@ class ResizerLinkGeneratorTest extends TestCase
 	}
 
 
-	private function getConfig(?string $publicCacheDir, bool $webp = false, ?string $secret = null): ResizerConfig
+	/** @param array<string, mixed> $overrides ResizerConfigDTO properties */
+	private function getConfig(?string $publicCacheDir, bool $webp = false, ?string $secret = null, array $overrides = []): ResizerConfig
 	{
 		$config = new ResizerConfigDTO;
 		$config->tempDir = __DIR__ . '/../temp';
@@ -487,6 +590,10 @@ class ResizerLinkGeneratorTest extends TestCase
 		$config->library = 'Gd';
 		$config->isWebpSupportedByServer = $webp;
 		$config->secret = $secret;
+
+		foreach ($overrides as $property => $value) {
+			$config->$property = $value;
+		}
 
 		return new ResizerConfig($config);
 	}

@@ -121,6 +121,16 @@ class GeometryTest extends TestCase
 	}
 
 
+	public function testOutputDimensions(): void
+	{
+		$this->assertEquals($this->expected(100, 56), (new Geometry('100x'))->getOutputDimensions(self::$sourceDimensions));
+		// crop: the crop box, not the scaled image (267x150)
+		$this->assertEquals($this->expected(250, 150), (new Geometry('c250xc150'))->getOutputDimensions(self::$sourceDimensions));
+		$this->assertEquals($this->expected(100, 100), (new Geometry('c100xc100!'))->getOutputDimensions(self::$sourceDimensions));
+		$this->assertEquals($this->expected(1600, 900), (new Geometry('ifresize-2000x'))->getOutputDimensions(self::$sourceDimensions));
+	}
+
+
 	/** @return iterable<string, array{string, int|null}> */
 	public static function provideDecodeSizeHint(): iterable
 	{

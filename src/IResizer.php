@@ -13,4 +13,10 @@ interface IResizer
 
 	public function thumbnailExists(string $path): bool;
 
+	/**
+	 * Dimensions of the thumbnail without generating it, null when the source or params are invalid
+	 * or the source dimensions can't be read.
+	 */
+	public function getOutputDimensions(string $path, ?string $params): ?Dimensions;
+
 }
