@@ -42,7 +42,7 @@ final class ResizerExtension extends CompilerExtension
 			'formatPriority' => Expect::listOf(Expect::anyOf('jxl', 'webp', 'avif'))
 				->default(['jxl', 'webp', 'avif'])
 				->mergeDefaults(false)
-				->assert(static fn(array $list): bool => count($list) === count(array_unique($list)), 'Formats must not repeat'),
+				->assert(static fn(mixed $list): bool => is_array($list) && count($list) === count(array_unique($list)), 'Formats must not repeat'),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);
