@@ -22,7 +22,7 @@ final class OutputFormat
 	}
 
 
-	public function getOutputFormat(string $file, ?string $format = null): ?string
+	public function getOutputFormat(string $file, ?string $format = null): string
 	{
 		return $this->resolve($file, $format, $this->browserSupportsWebp, $this->browserSupportsAvif);
 	}

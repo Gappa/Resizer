@@ -14,7 +14,6 @@ use Nelson\Resizer\ResizerConfig;
 use Nelson\Resizer\ResizerLinkGenerator;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
-use Nette\DI\Definitions\Definition;
 use Nette\DI\Definitions\FactoryDefinition;
 use Nette\DI\Definitions\ServiceDefinition;
 use Nette\DI\Definitions\Statement;
@@ -119,11 +118,8 @@ final class ResizerExtension extends CompilerExtension
 	}
 
 
-	/**
-	 * @return ServiceDefinition
-	 * @throws Exception
-	 */
-	private function getLatteFactoryDefinition(): Definition
+	/** @throws Exception */
+	private function getLatteFactoryDefinition(): ServiceDefinition
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -133,8 +129,13 @@ final class ResizerExtension extends CompilerExtension
 			throw new Exception(sprintf('Service %s not found.', $latteFactoryName));
 		}
 
-		/** @var FactoryDefinition $latteFactory */
 		$latteFactory = $builder->getDefinition($latteFactoryName);
-		return $latteFactory->getResultDefinition();
+		$resultDefinition = $latteFactory instanceof FactoryDefinition ? $latteFactory->getResultDefinition() : null;
+
+		if (!$resultDefinition instanceof ServiceDefinition) {
+			throw new Exception(sprintf('Service %s is not a factory of a Latte engine.', $latteFactoryName));
+		}
+
+		return $resultDefinition;
 	}
 }
