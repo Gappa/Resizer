@@ -70,6 +70,10 @@ AVIF encoding is slow with the default settings. With Imagick, `avifSpeed: 8` ty
 for a few percent bigger files - measure on your images, then AVIF may deserve a better place in `formatPriority`.
 `jxlEffort` and `webpMethod` work the same way. GD and Gmagick use their defaults.
 
+With Imagick, large JPEG sources are scaled down already while decoding (libjpeg DCT scaling, `jpeg:size`
+with twice the output size, so the quality of the final resize is kept) - typically several times faster
+and with a fraction of the memory for photos from cameras and phones.
+
 Concurrent requests for the same missing thumbnail (a page full of new images, a CDN fetching in parallel) encode it
 only once: the others wait for a lock (in `tempDir/resizer-locks`) and use the result.
 

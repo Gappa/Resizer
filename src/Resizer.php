@@ -7,8 +7,13 @@ use Imagine\Exception\RuntimeException as ImagineRuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Imagine\Factory\ClassFactoryInterface;
+use Imagine\Image\Palette\PaletteInterface;
 use Imagine\Imagick\Image as ImagickImage;
+use Imagine\Imagick\Imagine as ImagickImagine;
 use Imagick;
+use Error;
+use ImagickException;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
@@ -259,6 +264,56 @@ final class Resizer implements IResizer
 
 
 	/**
+	 * Imagick + JPEG: the decoder scales the image down while decoding ("jpeg:size"), typically several
+	 * times faster and with a fraction of the memory for large photos. Otherwise a plain Imagine::open().
+	 */
+	private function openImage(string $path, Geometry $geometry): ImageInterface
+	{
+		$hint = $this->imagine instanceof ImagickImagine ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
+
+		if ($hint !== null && $this->imagine instanceof ImagickImagine) {
+			try {
+				$imagick = new Imagick;
+				$imagick->setOption('jpeg:size', $hint . 'x' . $hint);
+				$imagick->readImage($path);
+
+				// the same as Imagine\Imagick\Imagine::open(), its palette detection is private
+				$palette = (fn(Imagick $imagick): PaletteInterface => $this->createPalette($imagick))
+					->call($this->imagine, $imagick);
+
+				return $this->imagine->getClassFactory()->createImage(
+					ClassFactoryInterface::HANDLE_IMAGICK,
+					$imagick,
+					$palette,
+					$this->imagine->getMetadataReader()->readFile($path),
+				);
+			} catch (ImagickException | Error) {
+				// Imagine opens it again and reports the error consistently
+				// (Error: the private Imagine method changed in a new version)
+			}
+		}
+
+		return $this->imagine->open($path);
+	}
+
+
+	/**
+	 * @return positive-int|null
+	 */
+	private function getJpegDecodeSizeHint(string $path, Geometry $geometry): ?int
+	{
+		$size = @getimagesize($path); // reads only the header
+
+		if ($size === false || $size[2] !== IMAGETYPE_JPEG || $size[0] < 1 || $size[1] < 1) {
+			return null;
+		}
+
+		$hint = $geometry->getDecodeSizeHint(new Dimensions($size[0], $size[1]));
+		return $hint === null ? null : Helpers::getPositiveInt($hint);
+	}
+
+
+	/**
 	 * The thumbnail exists and is not older than the source image (a changed source is regenerated).
 	 * Impure: another request may create the thumbnail between two calls.
 	 * @phpstan-impure
@@ -315,7 +370,7 @@ final class Resizer implements IResizer
 		string $imagePathFull,
 		Geometry $geometry,
 	): ImageInterface {
-		$image = $this->imagine->open($imagePathFull);
+		$image = $this->openImage($imagePathFull, $geometry);
 
 		// before the size is read - a rotation by 90° swaps the dimensions
 		$this->autoOrient($image);

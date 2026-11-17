@@ -292,14 +292,62 @@ class ResizerTest extends TestCase
 	}
 
 
-	/**
-	 * JPEG 200x100 with an EXIF APP1 segment containing only the Orientation tag.
-	 */
-	private static function createJpegWithOrientation(string $path, int $orientation): void
+	public function testLargeJpegWithImagick(): void
 	{
-		$gd = imagecreatetruecolor(200, 100);
+		if (!extension_loaded('imagick')) {
+			$this->markTestSkipped('Imagick is not available.');
+		}
+
+		// large enough for the decoder to scale it down while decoding ("jpeg:size")
+		self::createJpegWithOrientation(self::PUBLIC_DIR . '/large.jpg', 1, 2000, 1000);
+		self::createJpegWithOrientation(self::PUBLIC_DIR . '/large-rotated.jpg', 6, 2000, 1000);
+		$resizer = $this->createImagickResizer();
+
+		$cases = [
+			['large.jpg', '100x', [100, 50]],
+			['large.jpg', 'x100', [200, 100]],
+			['large.jpg', 'c80xc80', [80, 80]],
+			['large.jpg', '120x30!', [120, 30]],
+			['large.jpg', 'ifresize-150x', [150, 75]],
+			['large-rotated.jpg', '100x', [100, 200]], // the rotation swaps the dimensions after decoding
+			['large-rotated.jpg', 'c50xc80', [50, 80]],
+		];
+
+		foreach ($cases as [$file, $params, $expected]) {
+			$image = new Imagick($resizer->process('_public/' . $file, $params, 'jpg'));
+			$this->assertSame($expected, [$image->getImageWidth(), $image->getImageHeight()], "$file $params");
+		}
+
+		// the left half of the source is red - the decoded image is the real one, not garbage
+		$image = new Imagick($resizer->process('_public/large.jpg', '100x', 'jpg'));
+		$pixel = $image->getImagePixelColor(10, 25)->getColor();
+		$this->assertGreaterThan(200, $pixel['r']);
+		$this->assertLessThan(60, $pixel['b']);
+	}
+
+
+	private function createImagickResizer(): Resizer
+	{
+		$dto = new ResizerConfigDTO;
+		$dto->tempDir = __DIR__ . '/../temp';
+		$dto->wwwDir = __DIR__;
+		$dto->library = 'Imagick';
+		$config = new ResizerConfig($dto);
+
+		return new Resizer($config, new OutputFormat(new Request(new UrlScript), $config));
+	}
+
+
+	/**
+	 * JPEG (200x100 by default, the left half red) with an EXIF APP1 segment containing only the Orientation tag.
+	 * @param positive-int $width
+	 * @param positive-int $height
+	 */
+	private static function createJpegWithOrientation(string $path, int $orientation, int $width = 200, int $height = 100): void
+	{
+		$gd = imagecreatetruecolor($width, $height);
 		self::assertNotFalse($gd);
-		imagefilledrectangle($gd, 0, 0, 99, 99, (int) imagecolorallocate($gd, 255, 0, 0));
+		imagefilledrectangle($gd, 0, 0, intdiv($width, 2) - 1, $height - 1, (int) imagecolorallocate($gd, 255, 0, 0));
 		ob_start();
 		imagejpeg($gd);
 		$jpeg = (string) ob_get_clean();

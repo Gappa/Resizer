@@ -108,6 +108,28 @@ final class Geometry
 	}
 
 
+	/**
+	 * Minimum size (a square side) the source has to be decoded at, so a JPEG decoder can scale it down
+	 * while decoding (libjpeg DCT scaling, ImageMagick "jpeg:size") - much faster for large photos.
+	 * Twice the output size keeps the quality of the final resize. Both orientations are considered,
+	 * the EXIF orientation is not known before decoding. Null when no reduction is possible.
+	 */
+	public function getDecodeSizeHint(Dimensions $source): ?int
+	{
+		$longest = 0;
+
+		foreach ([$source, new Dimensions($source->getHeight(), $source->getWidth())] as $dimensions) {
+			$output = $this->calculateNewSize($dimensions);
+			$longest = max($longest, $output->getWidth(), $output->getHeight());
+		}
+
+		$side = 2 * $longest;
+
+		// libjpeg scales by 1/2 at least
+		return $side * 2 <= min($source->getWidth(), $source->getHeight()) ? $side : null;
+	}
+
+
 	public function getCropPoint(Dimensions $source): Point
 	{
 		$overflowX = max(0, $source->getWidth() - (int) $this->resizerParams->getWidth());

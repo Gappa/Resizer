@@ -7,6 +7,7 @@ use Imagine\Image\Point;
 use Nelson\Resizer\Dimensions;
 use Nelson\Resizer\Exceptions\IncompatibleResizerParamsException;
 use Nelson\Resizer\Geometry;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class GeometryTest extends TestCase
@@ -117,6 +118,26 @@ class GeometryTest extends TestCase
 			$this->expected(1, 1),
 			(new Geometry('x1'))->calculateNewSize(new Dimensions(7, 1999)),
 		);
+	}
+
+
+	/** @return iterable<string, array{string, int|null}> */
+	public static function provideDecodeSizeHint(): iterable
+	{
+		// source 4000x3000; the hint covers both orientations (3000x4000 gives 400x533 for "400x")
+		yield 'width' => ['400x', 1066];
+		yield 'crop' => ['c200xc200', 534];
+		yield 'forced' => ['100x100!', 200];
+		yield 'too big for 1/2 scaling' => ['2000x', null];
+		yield 'no dimensions' => ['x-q50', null];
+		yield 'auto' => ['auto', null];
+	}
+
+
+	#[DataProvider('provideDecodeSizeHint')]
+	public function testDecodeSizeHint(string $params, ?int $expected): void
+	{
+		$this->assertSame($expected, (new Geometry($params))->getDecodeSizeHint(new Dimensions(4000, 3000)));
 	}
 
 
