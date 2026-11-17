@@ -1,3 +1,8 @@
+# Requirements
+
+- PHP 8.5+, Nette 3.3+, Latte 3.1+
+- ext-fileinfo and one of ext-imagick (recommended), ext-gd, ext-gmagick
+
 # Installation
 
 1. Composer: `composer require nelson/resizer`
@@ -27,6 +32,8 @@
 		qualityWebp: 70 # 0 - 100
 		qualityJpeg: 70 # 0 - 100
 		compressionPng: 9 # 0 - 9
+		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
+		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
 		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
 		upgradePng2Webp: true # automatically convert PNGs to WEBP when the format is supported by the browser & server
@@ -107,6 +114,8 @@ Notes:
   before storing edited HTML (e.g. a rich text editor showing static URLs), so the content doesn't depend on the public cache.
 - Thumbnails are written to a temporary file and renamed, a partially written file is never served.
 - The public directory is never cleaned automatically, delete its content when needed (e.g. on deploy).
+- A changed source image is regenerated on the next `/ir/` request, but an existing static file keeps being served
+  until the public cache is purged.
 
 # Relative and absolute URLs
 
@@ -118,3 +127,25 @@ Absolute, uses diffent tag:
 
 - `<img src="{rlinkabs 'test.jpg', 'l400xc200'}">`
 - `<a href="{rlinkabs 'test.jpg', 'l400xc200'}" target="_blank">Link to image</a>`
+
+# Security
+
+- Only `jpg`, `jpeg`, `jfif`, `png`, `gif`, `webp` and `avif` source images inside `wwwDir` are processed, the MIME type
+  is checked too. Paths with `..` segments, backslashes or NUL bytes are refused. Symlinks inside `wwwDir` are followed.
+- Requested dimensions are limited by `maxWidth`/`maxHeight` (default 4000 px, max. 5 digits in the URL).
+- Invalid requests get HTTP 400, missing images HTTP 404, without details of the error.
+- Every params combination creates a new cached file. If that is a concern (disk usage), restrict the allowed params
+  in the route or put the resizer behind a CDN with rate limiting.
+- With Imagick, a restrictive ImageMagick `policy.xml` (resource limits, disabled coders) is recommended as well.
+
+# Upgrading to 9.x
+
+- PHP 8.5, Latte 3.1, nette/application 3.3 are required. Latte 2 is no longer declared as supported (it never worked).
+- New options `maxWidth`/`maxHeight` (default 4000) - set them higher if you need larger thumbnails.
+- Default `qualityWebp` and `qualityJpeg` are 70 as documented (the config schema used 75).
+- The `|resize` Latte filter was removed (it pointed to a non-existent method).
+- All resizer exceptions extend `Nelson\Resizer\Exceptions\ResizerException`. Unsupported format throws
+  `UnsupportedFormatException`, too large dimensions `DimensionsTooLargeException`.
+- `ResizePresenter` returns 400 for invalid requests (was 404) and sends `Vary: Accept` when the format is negotiated.
+- Crop dimensions may differ by 1px from 8.x (rounding fix), cached thumbnails do not need to be regenerated.
+- `ResizerParams::isIfresize()` was renamed to `isIfResize()`.
