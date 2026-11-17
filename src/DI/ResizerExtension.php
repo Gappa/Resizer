@@ -10,6 +10,7 @@ use Nelson\Resizer\CacheCleaner;
 use Nelson\Resizer\Console\CleanCacheCommand;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
 use Nelson\Resizer\OutputFormat;
+use Nelson\Resizer\Placeholder\PlaceholderGenerator;
 use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
@@ -51,6 +52,7 @@ final class ResizerExtension extends CompilerExtension
 				->assert(self::isListOfUniqueStrings(...), 'Formats must not repeat'),
 			'sendfile' => Expect::anyOf(ResizerConfig::SENDFILE_X_SENDFILE, ResizerConfig::SENDFILE_X_ACCEL_REDIRECT, null)->default(null),
 			'maxAnimationPixels' => Expect::int(25_000_000)->min(1),
+			'placeholderBudget' => Expect::int(10)->min(0),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);
@@ -81,6 +83,9 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('linkGenerator'))
 			->setFactory(ResizerLinkGenerator::class);
+
+		$builder->addDefinition($this->prefix('placeholderGenerator'))
+			->setFactory(PlaceholderGenerator::class);
 
 		$builder->addDefinition($this->prefix('cacheCleaner'))
 			->setFactory(CacheCleaner::class);

@@ -326,6 +326,13 @@ final class ResizerConfig
 	}
 
 
+	/** @return int<0, max> */
+	public function getPlaceholderBudget(): int
+	{
+		return $this->config->placeholderBudget;
+	}
+
+
 	public function isUpscaleAllowed(): bool
 	{
 		return $this->config->allowUpscale;

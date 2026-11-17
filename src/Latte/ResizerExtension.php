@@ -5,6 +5,7 @@ namespace Nelson\Resizer\Latte;
 
 use Latte\Extension;
 use Nelson\Resizer\Dimensions;
+use Nelson\Resizer\Placeholder\Placeholder;
 use Nelson\Resizer\ResizerLinkGenerator;
 
 final class ResizerExtension extends Extension
@@ -33,6 +34,8 @@ final class ResizerExtension extends Extension
 		return [
 			// dimensions of a thumbnail for width/height attributes: {var $size = rsize($file, '400x')}
 			'rsize' => fn(string $file, ?string $params = null): ?Dimensions => $this->linkGenerator?->getDimensions($file, $params),
+			// inline style of a placeholder: <img n:attr="style: rplaceholder($file, '400x', 'blur')">
+			'rplaceholder' => fn(string $file, ?string $params = null, string $mode = Placeholder::COLOR): string => $this->linkGenerator?->getPlaceholderStyle($file, $params, $mode) ?? '',
 		];
 	}
 

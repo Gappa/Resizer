@@ -4,9 +4,12 @@ declare(strict_types=1);
 namespace Nelson\Resizer;
 
 use Nelson\Resizer\DI\ResizerExtension;
+use Nelson\Resizer\Placeholder\Placeholder;
+use Nelson\Resizer\Placeholder\PlaceholderGenerator;
 use Nette\Application\LinkGenerator;
 use Nette\Application\UI\Component;
 use Nette\Http\IRequest;
+use Nette\InvalidArgumentException;
 use Throwable;
 
 /**
@@ -25,6 +28,7 @@ final class ResizerLinkGenerator
 		private readonly IResizer $resizer,
 		private readonly IRequest $httpRequest,
 		private readonly UrlSigner $urlSigner,
+		private readonly ?PlaceholderGenerator $placeholders = null,
 	) {
 	}
 
@@ -163,6 +167,7 @@ final class ResizerLinkGenerator
 		$default = $paramsList === [] ? null : $paramsList[array_key_last($paramsList)];
 		$dimensions = $this->getDimensions($file, $default);
 		$srcset = $this->srcset($linker, $file, $paramsList, $fallbackFormat, $absolute);
+		$attributes = $this->applyPlaceholder($attributes, $file, $default);
 
 		// the given attributes override the defaults (except src and srcset), the order of the defaults is kept
 		$html .= '<img' . self::formatAttributes(array_replace([
@@ -174,6 +179,54 @@ final class ResizerLinkGenerator
 		], array_diff_key($attributes, ['src' => true, 'srcset' => true]))) . '>';
 
 		return $html . '</picture>';
+	}
+
+
+	/**
+	 * Inline style of a placeholder shown while the thumbnail loads, an empty string when there is none
+	 * (transparent image, not generated yet in this request because of the budget, no PlaceholderGenerator).
+	 * @param string $mode Placeholder::COLOR or Placeholder::BLUR
+	 */
+	public function getPlaceholderStyle(string $file, ?string $params = null, string $mode = Placeholder::COLOR): string
+	{
+		if (!in_array($mode, Placeholder::MODES, true)) {
+			throw new InvalidArgumentException(sprintf("Placeholder mode must be '%s'.", implode("' or '", Placeholder::MODES)));
+		}
+
+		return $this->placeholders?->get($file, $params)?->getStyle($mode) ?? '';
+	}
+
+
+	/**
+	 * The "placeholder" attribute of picture(): 'color', 'blur' or true (= color) - turned into a style.
+	 * @param array<string, scalar|null> $attributes
+	 * @return array<string, scalar|null>
+	 */
+	private function applyPlaceholder(array $attributes, string $file, ?string $params): array
+	{
+		$mode = $attributes['placeholder'] ?? null;
+		unset($attributes['placeholder']);
+
+		if ($mode === null || $mode === false) {
+			return $attributes;
+		}
+
+		if ($mode === true) {
+			$mode = Placeholder::COLOR;
+		}
+
+		if (!is_string($mode) || !in_array($mode, Placeholder::MODES, true)) {
+			throw new InvalidArgumentException(sprintf("Placeholder must be '%s' or true.", implode("', '", Placeholder::MODES)));
+		}
+
+		$style = $this->getPlaceholderStyle($file, $params, $mode);
+
+		if ($style !== '') {
+			$existing = $attributes['style'] ?? null;
+			$attributes['style'] = $style . (is_string($existing) && $existing !== '' ? ';' . $existing : '');
+		}
+
+		return $attributes;
 	}
 
 

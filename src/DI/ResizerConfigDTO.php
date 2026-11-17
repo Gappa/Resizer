@@ -95,6 +95,13 @@ final class ResizerConfigDTO
 	public bool $allowUpscale = false;
 
 	/**
+	 * Max. new placeholders (tiny thumbnails) generated while rendering one request, the other images get
+	 * their placeholder in a next render. PlaceholderGenerator::warmUp() (e.g. on upload) is not limited.
+	 * @var int<0, max>
+	 */
+	public int $placeholderBudget = 10;
+
+	/**
 	 * The web server sends the thumbnail file instead of PHP: null (PHP), 'x-sendfile' (Apache mod_xsendfile,
 	 * lighttpd - an absolute path), 'x-accel-redirect' (nginx - an internal URI, see $sendfileInternalUri).
 	 */

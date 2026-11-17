@@ -12,6 +12,7 @@ use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
 use Nelson\Resizer\ResizerLinkGenerator;
+use Nelson\Resizer\Placeholder\PlaceholderGenerator;
 use Nelson\Resizer\UrlSigner;
 use Nette\Application\LinkGenerator;
 use Nette\Application\PresenterFactory;
@@ -543,6 +544,47 @@ class ResizerLinkGeneratorTest extends TestCase
 	}
 
 
+	public function testPictureWithPlaceholder(): void
+	{
+		[$generator] = $this->create(null);
+
+		$html = $generator->picture($this->createLinkStub(), self::IMAGE, ['100x'], ['placeholder' => 'color', 'style' => 'border:0']);
+		// the placeholder goes before the given style; the fixture is opaque
+		$this->assertMatchesRegularExpression('~<img [^>]* style="background-color:#[0-9a-f]{6};border:0">~', $html);
+		$this->assertStringNotContainsString('placeholder', $html);
+
+		$html = $generator->picture($this->createLinkStub(), self::IMAGE, ['100x'], ['placeholder' => 'blur']);
+		$this->assertMatchesRegularExpression('~ style="background:#[0-9a-f]{6} url\(&quot;data:image/svg\+xml;base64,[^"]+&quot;\) 0 0/100% 100% no-repeat"~', $html);
+
+		$html = $generator->picture($this->createLinkStub(), self::IMAGE, ['100x'], ['placeholder' => false]);
+		$this->assertStringNotContainsString('style=', $html);
+	}
+
+
+	public function testPictureWithInvalidPlaceholder(): void
+	{
+		[$generator] = $this->create(null);
+
+		$this->expectException(\Nette\InvalidArgumentException::class);
+		$generator->picture($this->createLinkStub(), self::IMAGE, ['100x'], ['placeholder' => 'blurry']);
+	}
+
+
+	public function testLattePlaceholder(): void
+	{
+		[$generator] = $this->create(null);
+
+		$this->assertMatchesRegularExpression(
+			'~^<img style="background-color:#[0-9a-f]{6}">\|<img style="background:#[0-9a-f]{6} url\(&quot;data:image/svg\+xml;base64,[^"]+&quot;\) 0 0/100% 100% no-repeat">$~',
+			$this->render(
+				$generator,
+				$this->createLinkStub(),
+				"<img n:attr=\"style: rplaceholder('fixtures/test.png', '100x')\">|<img n:attr=\"style: rplaceholder('fixtures/test.png', '100x', 'blur')\">",
+			),
+		);
+	}
+
+
 	public function testLatteSrcsetInvalidParams(): void
 	{
 		[$generator] = $this->create(null);
@@ -576,7 +618,10 @@ class ResizerLinkGeneratorTest extends TestCase
 		$outputFormat = new OutputFormat($httpRequest, $config);
 		$resizer = new Resizer($config, $outputFormat);
 
-		return [new ResizerLinkGenerator($config, $outputFormat, $resizer, $httpRequest, new UrlSigner($config)), $resizer];
+		return [
+			new ResizerLinkGenerator($config, $outputFormat, $resizer, $httpRequest, new UrlSigner($config), new PlaceholderGenerator($resizer, $config)),
+			$resizer,
+		];
 	}
 
 
