@@ -430,8 +430,8 @@ final class Resizer implements IResizer
 
 			$ping->setFirstIterator();
 			$page = $ping->getImagePage();
-			$width = max((int) ($page['width'] ?? 0), $ping->getImageWidth());
-			$height = max((int) ($page['height'] ?? 0), $ping->getImageHeight());
+			$width = max($page['width'], $ping->getImageWidth());
+			$height = max($page['height'], $ping->getImageHeight());
 
 			return $frames * $width * $height > $this->config->getMaxAnimationPixels();
 		} catch (ImagickException) {
