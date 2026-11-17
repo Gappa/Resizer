@@ -29,6 +29,10 @@ final class Resizer implements IResizer
 	public const string FORMAT_SUFFIX_WEBP = 'webp';
 	public const string FORMAT_SUFFIX_AVIF = 'avif';
 	public const string FORMAT_SUFFIX_PNG = 'png';
+	public const string FORMAT_SUFFIX_GIF = 'gif';
+
+	/** Formats Imagick can write animations in */
+	public const array ANIMATION_FORMATS = [self::FORMAT_SUFFIX_GIF, 'webp'];
 	public const string FORMAT_SUFFIX_JXL = 'jxl';
 
 	public const array FORMAT_SUFFIXES_JPG = [
@@ -118,18 +122,31 @@ final class Resizer implements IResizer
 
 	private function generate(string $sourceImagePath, string $thumbnailPath, Geometry $geometry): void
 	{
+		$format = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
+
 		try {
-			$thumbnail = $this->processImage($sourceImagePath, $geometry);
+			$thumbnail = $this->processImage($sourceImagePath, $geometry, $format);
 		} catch (ImagineRuntimeException) {
 			throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
+		}
+
+		$options = $this->config->getOptions($geometry->getResizerParams()->getQuality());
+
+		if (self::isAnimated($thumbnail) && $thumbnail instanceof ImagickImage) {
+			// Imagine would flatten the frames into one image otherwise; the frame delays are kept (delay null)
+			$imagick = $thumbnail->getImagick();
+			$imagick->setFirstIterator();
+			$options += [
+				'animated' => true,
+				'format' => $format,
+				'animated.loops' => max(0, $imagick->getImageIterations()),
+			];
 		}
 
 		if ($this->config->isStrip()) {
 			// remove all comments & metadata
 			$thumbnail->strip();
 		}
-
-		$format = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
 
 		// progressive JPEG; PNG interlacing (Adam7) makes files bigger, WEBP/AVIF/JXL ignore it
 		if ($this->config->isInterlace() && in_array($format, self::FORMAT_SUFFIXES_JPG, true)) {
@@ -152,7 +169,7 @@ final class Resizer implements IResizer
 			. '.tmp-' . bin2hex(random_bytes(6)) . '-' . basename($thumbnailPath);
 
 		try {
-			$thumbnail->save($tempPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
+			$thumbnail->save($tempPath, $options);
 			// plain rename() is atomic and replaces the target (FileSystem::rename() deletes it first)
 			if (!@rename($tempPath, $thumbnailPath)) {
 				throw new RuntimeException(sprintf("Unable to write thumbnail '%s'.", $thumbnailPath));
@@ -336,16 +353,40 @@ final class Resizer implements IResizer
 	 * Imagick + JPEG: the decoder scales the image down while decoding ("jpeg:size"), typically several
 	 * times faster and with a fraction of the memory for large photos. Otherwise a plain Imagine::open().
 	 */
-	private function openImage(string $path, Geometry $geometry): ImageInterface
+	private function openImage(string $path, Geometry $geometry, string $outputFormat): ImageInterface
 	{
 		$imagine = $this->imagine;
-		$hint = $imagine instanceof ImagickImagine ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
 
-		if ($imagine instanceof ImagickImagine && $hint !== null) {
+		if (!$imagine instanceof ImagickImagine) {
+			return $imagine->open($path); // GD reads the first frame of animations only
+		}
+
+		$isJpeg = in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), self::FORMAT_SUFFIXES_JPG, true);
+		$hint = $isJpeg ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
+
+		if (!$isJpeg || $hint !== null) {
 			try {
 				$imagick = new Imagick;
-				$imagick->setOption('jpeg:size', $hint . 'x' . $hint);
-				$imagick->readImage($path);
+
+				if ($hint !== null) {
+					$imagick->setOption('jpeg:size', $hint . 'x' . $hint);
+				}
+
+				// An animation (GIF, WEBP, APNG, ...) is kept only when the output format can hold it
+				// and it fits the memory limit, otherwise only the first frame is decoded.
+				$firstFrameOnly = !$isJpeg && (
+					!in_array($outputFormat, self::ANIMATION_FORMATS, true)
+					|| $this->exceedsAnimationLimit($path)
+				);
+				$imagick->readImage($firstFrameOnly ? $path . '[0]' : $path);
+
+				// Frames may cover only a part of the canvas (GIF deltas, even the first one) - make each a full
+				// canvas frame as displayed, so they can be resized/cropped. The iterator at the first frame.
+				if ($imagick->getNumberImages() > 1 || str_ends_with(strtolower($path), '.gif')) {
+					$imagick = $imagick->coalesceImages();
+				}
+
+				$imagick->setFirstIterator();
 
 				// the same as Imagine\Imagick\Imagine::open(), its palette detection is private
 				$palette = (fn(Imagick $imagick): PaletteInterface => $this->createPalette($imagick))
@@ -364,6 +405,38 @@ final class Resizer implements IResizer
 		}
 
 		return $imagine->open($path);
+	}
+
+
+	private static function isAnimated(ImageInterface $image): bool
+	{
+		return $image instanceof ImagickImage && $image->getImagick()->getNumberImages() > 1;
+	}
+
+
+	/**
+	 * Frames × canvas size over the limit, from the headers only (pingImage). Unreadable = exceeding.
+	 */
+	private function exceedsAnimationLimit(string $path): bool
+	{
+		try {
+			$ping = new Imagick;
+			$ping->pingImage($path);
+			$frames = $ping->getNumberImages();
+
+			if ($frames < 2) {
+				return false;
+			}
+
+			$ping->setFirstIterator();
+			$page = $ping->getImagePage();
+			$width = max((int) ($page['width'] ?? 0), $ping->getImageWidth());
+			$height = max((int) ($page['height'] ?? 0), $ping->getImageHeight());
+
+			return $frames * $width * $height > $this->config->getMaxAnimationPixels();
+		} catch (ImagickException) {
+			return true;
+		}
 	}
 
 
@@ -439,11 +512,15 @@ final class Resizer implements IResizer
 	private function processImage(
 		string $imagePathFull,
 		Geometry $geometry,
+		string $outputFormat,
 	): ImageInterface {
-		$image = $this->openImage($imagePathFull, $geometry);
+		$image = $this->openImage($imagePathFull, $geometry, $outputFormat);
+		$animated = self::isAnimated($image);
 
-		// before the size is read - a rotation by 90° swaps the dimensions
-		$this->autoOrient($image);
+		// before the size is read - a rotation by 90° swaps the dimensions (photos only, not animations)
+		if (!$animated) {
+			$this->autoOrient($image);
+		}
 
 		$imageCurSize = $image->getSize();
 
@@ -461,6 +538,12 @@ final class Resizer implements IResizer
 			|| $imageOutputSize->getHeight() !== $sourceDimensions->getHeight()
 		) {
 			$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
+
+			// Imagine resizes coalesced frames and deconstructs them back to deltas, the iterator stays at the last
+			// (possibly smaller) frame - the first frame has the full size the crop is checked against
+			if ($animated && $image instanceof ImagickImage) {
+				$image->getImagick()->setFirstIterator();
+			}
 		}
 
 		if ($geometry->getResizerParams()->isCrop()) {

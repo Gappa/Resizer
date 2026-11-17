@@ -50,6 +50,7 @@ final class ResizerExtension extends CompilerExtension
 				->mergeDefaults(false)
 				->assert(self::isListOfUniqueStrings(...), 'Formats must not repeat'),
 			'sendfile' => Expect::anyOf(ResizerConfig::SENDFILE_X_SENDFILE, ResizerConfig::SENDFILE_X_ACCEL_REDIRECT, null)->default(null),
+			'maxAnimationPixels' => Expect::int(25_000_000)->min(1),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);

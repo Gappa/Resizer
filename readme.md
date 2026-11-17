@@ -49,6 +49,8 @@
 		upgradePng2Avif: true # automatically convert PNGs to AVIF when the format is supported by the browser & server
 		upgradeJpg2Jxl: false # automatically convert JPEGs to JPEG XL when the format is supported by the browser & server
 		upgradePng2Jxl: false # automatically convert PNGs to JPEG XL when the format is supported by the browser & server
+		upgradeGif2Webp: true # automatically convert GIFs (animations too) to WEBP when supported by the browser & server
+		maxAnimationPixels: 25000000 # frames × width × height; bigger animations are reduced to the first frame
 		formatPriority: [jxl, webp, avif] # order of the modern formats for upgrades and fallbacks
 	```
 
@@ -79,6 +81,19 @@ and with a fraction of the memory for photos from cameras and phones.
 
 Concurrent requests for the same missing thumbnail (a page full of new images, a CDN fetching in parallel) encode it
 only once: the others wait for a lock (in `tempDir/resizer-locks`) and use the result.
+
+## Animations
+
+With Imagick, animated GIF and WEBP sources (and other multi-frame formats) stay animated when the output
+is GIF or WEBP - a GIF is upgraded to an animated WEBP by default (`upgradeGif2Webp`), usually much smaller.
+The frame delays and the loop count are kept.
+
+GIF frames often cover only the changed part of the image. The frames are therefore first composed to full frames
+as displayed (`coalesce`), resized/cropped, and optimized back to deltas - the result looks the same as the source.
+
+The first frame is used when the output format can't hold an animation (JPEG, PNG, AVIF, JPEG XL),
+when the animation has more pixels than `maxAnimationPixels` (all frames together - decoding needs the memory),
+and always with GD. Animations are detected by the number of frames ImageMagick decodes, not by guessing from the file.
 
 ## JPEG XL
 
@@ -323,6 +338,8 @@ In PHP: `ResizerLinkGenerator::srcset()`, `picture()` and `getDimensions()`.
   and delete the thumbnail cache after the upgrade (existing upscaled thumbnails are kept otherwise).
 - Crop dimensions may differ by 1px from 8.x (rounding fix), cached thumbnails do not need to be regenerated.
 - `ResizerParams::isIfresize()` was renamed to `isIfResize()`.
+- GIFs are converted to (animated) WEBP when the browser supports it (`upgradeGif2Webp: true`); animated GIFs
+  were flattened into one broken image in 8.x, with Imagick they stay animated now.
 - WEBP is preferred over AVIF now (`formatPriority: [jxl, webp, avif]`), set `formatPriority: [avif, webp]`
   for the previous behavior. JPEG XL support is new, disabled by default.
 - `OutputFormat` accepts `Nette\Http\IRequest`; the `Accept` header is parsed properly (`q=0` means not supported).

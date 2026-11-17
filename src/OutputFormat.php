@@ -12,9 +12,8 @@ use Nette\Http\IRequest;
  * - an explicitly requested format is used as is (if the server supports it),
  * - a WEBP/AVIF/JXL source keeps its format when the browser accepts it, otherwise the first format
  *   of formatPriority the browser accepts is used, JPEG as the last resort,
- * - a JPEG/PNG source is upgraded to the first format of formatPriority the browser accepts
- *   and the upgrade is enabled for, otherwise it keeps its format,
- * - other formats (GIF) are kept.
+ * - a JPEG/PNG/GIF source is upgraded to the first format of formatPriority the browser accepts
+ *   and the upgrade is enabled for (GIF to WEBP only, it keeps animations), otherwise it keeps its format.
  */
 final class OutputFormat
 {
@@ -81,7 +80,7 @@ final class OutputFormat
 			return Resizer::FORMAT_SUFFIX_JPG;
 		}
 
-		if ($source === Resizer::FORMAT_SUFFIX_JPG || $source === Resizer::FORMAT_SUFFIX_PNG) {
+		if (in_array($source, [Resizer::FORMAT_SUFFIX_JPG, Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_GIF], true)) {
 			foreach ($this->config->getFormatPriority() as $format) {
 				if ($canServe($format) && $this->config->canUpgrade($source, $format)) {
 					return $format;

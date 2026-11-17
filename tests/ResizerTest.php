@@ -394,12 +394,180 @@ class ResizerTest extends TestCase
 	}
 
 
-	private function createImagickResizer(): Resizer
+	public function testAnimatedGif(): void
+	{
+		$this->requireImagick();
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated.gif', iterations: 3);
+		$resizer = $this->createImagickResizer();
+
+		// 100x60 -> 50x30, the delta frames are scaled at their positions
+		$frames = $this->readFrames($resizer->process('_public/animated.gif', '50x', 'gif'));
+		$this->assertCount(3, $frames);
+
+		foreach ($frames as $frame) {
+			$this->assertSame([50, 30], [$frame->getImageWidth(), $frame->getImageHeight()]);
+		}
+
+		$this->assertColor('red', $frames[0], 10, 10);
+		$this->assertColor('blue', $frames[1], 10, 10); // frame 2 changed only this part
+		$this->assertColor('red', $frames[1], 35, 20);
+		$this->assertColor('blue', $frames[2], 10, 10); // kept from frame 2 (dispose none)
+		$this->assertColor('green', $frames[2], 35, 20); // frame 3 changed only this part
+		$this->assertColor('red', $frames[2], 45, 3);
+
+		// the loop count is kept
+		$this->assertSame(3, (new Imagick($resizer->process('_public/animated.gif', '50x', 'gif')))->getImageIterations());
+	}
+
+
+	public function testAnimatedGifCrop(): void
+	{
+		$this->requireImagick();
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-crop.gif');
+
+		// 100x60 -> scaled to 50x30, cropped to the left 30x30
+		$frames = $this->readFrames($this->createImagickResizer()->process('_public/animated-crop.gif', 'l30xt30', 'gif'));
+		$this->assertCount(3, $frames);
+
+		foreach ($frames as $frame) {
+			$this->assertSame([30, 30], [$frame->getImageWidth(), $frame->getImageHeight()]);
+		}
+
+		$this->assertColor('blue', $frames[2], 10, 10);
+	}
+
+
+	public function testAnimatedGifToWebp(): void
+	{
+		$this->requireImagick();
+
+		if (!in_array('WEBP', Imagick::queryFormats(), true)) {
+			$this->markTestSkipped('ImageMagick without WEBP support.');
+		}
+
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-webp.gif');
+		$frames = $this->readFrames($this->createImagickResizer()->process('_public/animated-webp.gif', '50x', 'webp'));
+
+		$this->assertCount(3, $frames);
+		$this->assertColor('blue', $frames[2], 10, 10);
+		$this->assertColor('green', $frames[2], 35, 20);
+	}
+
+
+	public function testAnimatedGifToStaticFormat(): void
+	{
+		$this->requireImagick();
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-static.gif');
+
+		// PNG can't hold the animation: the first frame, not all frames flattened into one
+		$frames = $this->readFrames($this->createImagickResizer()->process('_public/animated-static.gif', '50x', 'png'));
+
+		$this->assertCount(1, $frames);
+		$this->assertColor('red', $frames[0], 10, 10);
+		$this->assertColor('red', $frames[0], 35, 20);
+	}
+
+
+	public function testAnimationOverLimit(): void
+	{
+		$this->requireImagick();
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-limit.gif');
+
+		// 3 frames × 100 × 60 = 18 000 pixels
+		$frames = $this->readFrames($this->createImagickResizer(['maxAnimationPixels' => 10_000])->process('_public/animated-limit.gif', '50x', 'gif'));
+
+		$this->assertCount(1, $frames);
+		$this->assertColor('red', $frames[0], 10, 10);
+	}
+
+
+	public function testAnimatedGifWithGd(): void
+	{
+		$this->requireImagick(); // to create the GIF
+
+		self::createAnimatedGif(self::PUBLIC_DIR . '/animated-gd.gif');
+
+		// GD can't animate: the first frame
+		$frames = $this->readFrames(self::$resizer->process('_public/animated-gd.gif', '50x', 'gif'));
+		$this->assertCount(1, $frames);
+		$this->assertColor('red', $frames[0], 10, 10);
+	}
+
+
+	private function requireImagick(): void
+	{
+		if (!extension_loaded('imagick')) {
+			$this->markTestSkipped('Imagick is not available.');
+		}
+	}
+
+
+	/**
+	 * Frames as displayed (coalesced).
+	 * @return list<Imagick>
+	 */
+	private function readFrames(string $path): array
+	{
+		$frames = [];
+
+		foreach ((new Imagick($path))->coalesceImages() as $frame) {
+			$frames[] = $frame->getImage();
+		}
+
+		return $frames;
+	}
+
+
+	/** @param 'red'|'green'|'blue' $expected */
+	private function assertColor(string $expected, Imagick $frame, int $x, int $y): void
+	{
+		$color = $frame->getImagePixelColor($x, $y)->getColor();
+		$channels = ['red' => $color['r'], 'green' => $color['g'], 'blue' => $color['b']];
+
+		foreach ($channels as $channel => $value) {
+			$channel === $expected
+				? $this->assertGreaterThan(180, $value, "$expected at $x,$y: $channel")
+				: $this->assertLessThan(80, $value, "$expected at $x,$y: $channel");
+		}
+	}
+
+
+	/**
+	 * 100x60 GIF: a red frame, then two delta frames changing only a 20x20 part (blue at 10,10, green at 60,30),
+	 * each keeping the previous content (dispose none).
+	 */
+	private static function createAnimatedGif(string $path, int $iterations = 0): void
+	{
+		$animation = new Imagick;
+
+		foreach ([['red', 100, 60, 0, 0], ['blue', 20, 20, 10, 10], ['lime', 20, 20, 60, 30]] as [$color, $width, $height, $x, $y]) {
+			$frame = new Imagick;
+			$frame->newImage($width, $height, new \ImagickPixel($color));
+			$frame->setImageFormat('gif');
+			$frame->setImagePage(100, 60, $x, $y);
+			$frame->setImageDelay(20);
+			$frame->setImageDispose(1); // none
+			$frame->setImageIterations($iterations);
+			$animation->addImage($frame);
+		}
+
+		FileSystem::createDir(dirname($path));
+		$animation->writeImages($path, true);
+	}
+
+
+	/** @param array<string, mixed> $overrides ResizerConfigDTO properties */
+	private function createImagickResizer(array $overrides = []): Resizer
 	{
 		$dto = new ResizerConfigDTO;
 		$dto->tempDir = __DIR__ . '/../temp';
 		$dto->wwwDir = __DIR__;
 		$dto->library = 'Imagick';
+
+		foreach ($overrides as $property => $value) {
+			$dto->$property = $value;
+		}
+
 		$config = new ResizerConfig($dto);
 
 		return new Resizer($config, new OutputFormat(new Request(new UrlScript), $config));

@@ -25,6 +25,16 @@ final class ResizerConfigDTO
 	public bool $upgradeJpg2Jxl = false;
 	public bool $upgradePng2Jxl = false;
 
+	/** GIF to WEBP, animations are kept (Imagick), animated WEBP is usually much smaller */
+	public bool $upgradeGif2Webp = true;
+
+	/**
+	 * Animations (GIF/WEBP, Imagick only) with more pixels in all frames together (frames × width × height)
+	 * are reduced to their first frame - decoding them would need too much memory.
+	 * @var positive-int
+	 */
+	public int $maxAnimationPixels = 25_000_000;
+
 	/**
 	 * Order in which the modern formats are tried when upgrading JPEG/PNG, or when the browser does not
 	 * support the format of a WEBP/AVIF/JXL source. A format missing in the list is never used for that.

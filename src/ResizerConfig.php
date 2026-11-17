@@ -203,6 +203,19 @@ final class ResizerConfig
 	}
 
 
+	public function canUpgradeGif2Webp(): bool
+	{
+		return $this->config->upgradeGif2Webp;
+	}
+
+
+	/** @return positive-int */
+	public function getMaxAnimationPixels(): int
+	{
+		return $this->config->maxAnimationPixels;
+	}
+
+
 	/**
 	 * The server can write the format (JPEG, PNG and GIF always).
 	 */
@@ -213,7 +226,7 @@ final class ResizerConfig
 
 
 	/**
-	 * Upgrade of a JPEG/PNG source to a modern format is enabled.
+	 * Upgrade of a JPEG/PNG/GIF source to a modern format is enabled.
 	 */
 	public function canUpgrade(string $sourceFormat, string $targetFormat): bool
 	{
@@ -224,6 +237,8 @@ final class ResizerConfig
 			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_WEBP] => $this->canUpgradePng2Webp(),
 			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_AVIF] => $this->canUpgradePng2Avif(),
 			[Resizer::FORMAT_SUFFIX_PNG, Resizer::FORMAT_SUFFIX_JXL] => $this->canUpgradePng2Jxl(),
+			// AVIF/JXL animations are not supported by the encoders here, WEBP only
+			[Resizer::FORMAT_SUFFIX_GIF, Resizer::FORMAT_SUFFIX_WEBP] => $this->canUpgradeGif2Webp(),
 			default => false,
 		};
 	}

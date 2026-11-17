@@ -61,8 +61,12 @@ class OutputFormatTest extends TestCase
 		yield 'jxl: browser without jxl' => ['test.jxl', self::ACCEPT_AVIF_WEBP, self::SERVER_ALL, [], 'webp'];
 		yield 'jxl: to jpg' => ['test.jxl', '', self::SERVER_ALL, [], 'jpg'];
 
-		// GIF is kept
-		yield 'gif' => ['test.gif', self::ACCEPT_ALL, self::SERVER_ALL, [], 'gif'];
+		// GIF: to WEBP only (animations), regardless of the priority
+		yield 'gif: to webp' => ['test.gif', self::ACCEPT_ALL, self::SERVER_ALL, ['upgradeJpg2Jxl' => true], 'webp'];
+		yield 'gif: avif/jxl are not used' => ['test.gif', 'image/avif,image/jxl', self::SERVER_ALL, [], 'gif'];
+		yield 'gif: upgrade disabled' => ['test.gif', self::ACCEPT_ALL, self::SERVER_ALL, ['upgradeGif2Webp' => false], 'gif'];
+		yield 'gif: browser without webp' => ['test.gif', '', self::SERVER_ALL, [], 'gif'];
+		yield 'gif: server without webp' => ['test.gif', self::ACCEPT_ALL, ['avif', 'jxl'], [], 'gif'];
 
 		// Accept parsing
 		yield 'q=0 is refused' => ['test.jpg', 'image/webp;q=0,image/avif', self::SERVER_WEBP_AVIF, [], 'avif'];
