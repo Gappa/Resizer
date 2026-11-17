@@ -609,19 +609,43 @@ class ResizerLinkGeneratorTest extends TestCase
 
 
 	/**
-	 * The pitfall the README warns about: in style="{...}" Latte escapes the value for CSS too (backslashes before
-	 * ":", "#", "(", ...), which breaks the declaration. If this test fails, Latte changed the behavior and
-	 * the plain attribute could be documented as well.
+	 * Latte 3.1: an attribute whose whole value is one expression is an "expression attribute",
+	 * escaped for HTML only (HtmlHelpers::formatStyleAttribute) - the style is kept exactly.
 	 */
-	public function testLatteStyleAttributeEscapesCss(): void
+	public function testLattePlaceholderAsWholeStyleAttribute(): void
 	{
 		[$generator] = $this->create(null);
-		$expected = $generator->getPlaceholderStyle(self::IMAGE, '100x');
 
-		$html = $this->render($generator, $this->createLinkStub(), "<img style=\"{rplaceholder('fixtures/test.png', '100x')}\">");
+		foreach (['color', 'blur'] as $mode) {
+			$expected = $generator->getPlaceholderStyle(self::IMAGE, '100x', $mode);
+
+			foreach (["style=\"{rplaceholder('fixtures/test.png', '100x', '$mode')}\"", "style={rplaceholder('fixtures/test.png', '100x', '$mode')}"] as $attribute) {
+				$html = $this->render($generator, $this->createLinkStub(), "<img $attribute>");
+
+				$this->assertSame(
+					$expected,
+					self::getDecodedAttribute($html, 'style'),
+					sprintf('Latte %s changed the placeholder style in <img %s>.', Engine::Version, $attribute),
+				);
+			}
+		}
+	}
+
+
+	/**
+	 * The pitfall the README warns about: an expression mixed with other text in style="..." is escaped for CSS
+	 * too (backslashes before ":", "#", "(", ...), which breaks the declaration. If this test fails, Latte changed
+	 * the behavior and the README note can be removed.
+	 */
+	public function testLatteStyleAttributeWithMoreTextEscapesCss(): void
+	{
+		[$generator] = $this->create(null);
+		$expected = $generator->getPlaceholderStyle(self::IMAGE, '100x') . ';border:0';
+
+		$html = $this->render($generator, $this->createLinkStub(), "<img style=\"{rplaceholder('fixtures/test.png', '100x')};border:0\">");
 		$actual = self::getDecodedAttribute($html, 'style');
 
-		$this->assertNotSame($expected, $actual, sprintf('Latte %s does not CSS-escape style="{...}" anymore.', Engine::Version));
+		$this->assertNotSame($expected, $actual, sprintf('Latte %s does not CSS-escape expressions in style="...;..." anymore.', Engine::Version));
 		$this->assertStringContainsString('\\', $actual);
 	}
 
