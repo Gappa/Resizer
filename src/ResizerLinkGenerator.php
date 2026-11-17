@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
+use Nelson\Resizer\Access\AccessGuard;
 use Nelson\Resizer\DI\ResizerExtension;
 use Nelson\Resizer\Placeholder\Placeholder;
 use Nelson\Resizer\Placeholder\PlaceholderGenerator;
@@ -29,6 +30,7 @@ final class ResizerLinkGenerator
 		private readonly IRequest $httpRequest,
 		private readonly UrlSigner $urlSigner,
 		private readonly ?PlaceholderGenerator $placeholders = null,
+		private readonly ?AccessGuard $accessGuard = null,
 	) {
 	}
 
@@ -419,7 +421,7 @@ final class ResizerLinkGenerator
 
 	/**
 	 * URL of an already generated thumbnail in the public cache directory,
-	 * or null when static mode is off or the thumbnail does not exist yet.
+	 * or null when static mode is off, the thumbnail does not exist yet or the image is protected.
 	 */
 	public function getStaticUrl(
 		string $file,
@@ -467,7 +469,8 @@ final class ResizerLinkGenerator
 
 		$file = ltrim($file, '/');
 
-		if ($file === '') {
+		// protected images are never in the public cache, the resize presenter checks the access
+		if ($file === '' || $this->accessGuard?->isProtected($file) === true) {
 			return null;
 		}
 

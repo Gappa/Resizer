@@ -113,6 +113,14 @@ final class ResizerConfigDTO
 	public ?string $sendfileInternalUri = null;
 
 	/**
+	 * Images protected by an AccessPolicy: how long browsers may cache them when the access is allowed
+	 * (seconds, "Cache-Control: private"). 0 = revalidated on every use (cheap 304 with the ETag),
+	 * so a logout takes effect immediately.
+	 * @var int<0, max>
+	 */
+	public int $protectedMaxAge = 0;
+
+	/**
 	 * Secret key for signing URLs (at least 32 characters). When set, the resize presenter
 	 * refuses requests without a valid signature. Null disables signing.
 	 */

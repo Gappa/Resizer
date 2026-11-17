@@ -108,6 +108,17 @@ class ResizerTest extends TestCase
 		yield 'null byte' => ["fixtures/test.png\0.png"];
 		yield 'line break' => ["fixtures/test.png\nX-Injected: 1"];
 		yield 'empty' => [''];
+		// non-canonical paths would bypass access policies comparing path prefixes
+		yield 'current dir at start' => ['./fixtures/test.png'];
+		yield 'current dir in the middle' => ['fixtures/./test.png'];
+		yield 'double slash' => ['fixtures//test.png'];
+		yield 'trailing slash' => ['fixtures/test.png/'];
+	}
+
+
+	public function testLeadingSlashIsAllowed(): void
+	{
+		$this->assertSame(__DIR__ . '/fixtures/test.png', self::$resizer->getSourceImagePath('/fixtures/test.png'));
 	}
 
 
