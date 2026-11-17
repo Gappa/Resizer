@@ -5,24 +5,21 @@ namespace Nelson\Resizer;
 
 use Imagine\Exception\RuntimeException as ImagineRuntimeException;
 use Imagine\Image\AbstractImagine;
-use Imagine\Image\Box;
-use Imagine\Image\ImageInterface;
-use Imagine\Factory\ClassFactoryInterface;
-use Imagine\Image\Palette\PaletteInterface;
-use Imagine\Imagick\Image as ImagickImage;
-use Imagine\Imagick\Imagine as ImagickImagine;
-use Imagick;
-use Error;
-use ImagickException;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\Exceptions\SecurityException;
-use Nette\IOException;
+use Nelson\Resizer\Image\ImageLoader;
+use Nelson\Resizer\Image\ImageProcessor;
+use Nelson\Resizer\Image\SourceDimensionsReader;
+use Nelson\Resizer\Image\ThumbnailWriter;
 use Nette\Utils\FileSystem;
-use RuntimeException;
 
+/**
+ * Validates requests (paths, params, limits) and generates thumbnails into the cache directory.
+ * The image work is done by the classes in Nelson\Resizer\Image.
+ */
 final class Resizer implements IResizer
 {
 	public const string FORMAT_SUFFIX_JPG = 'jpg';
@@ -30,9 +27,6 @@ final class Resizer implements IResizer
 	public const string FORMAT_SUFFIX_AVIF = 'avif';
 	public const string FORMAT_SUFFIX_PNG = 'png';
 	public const string FORMAT_SUFFIX_GIF = 'gif';
-
-	/** Formats Imagick can write animations in */
-	public const array ANIMATION_FORMATS = [self::FORMAT_SUFFIX_GIF, 'webp'];
 	public const string FORMAT_SUFFIX_JXL = 'jxl';
 
 	public const array FORMAT_SUFFIXES_JPG = [
@@ -43,6 +37,9 @@ final class Resizer implements IResizer
 
 	/** Formats the output can be negotiated to (by the Accept header and the config) */
 	public const array MODERN_FORMATS = [self::FORMAT_SUFFIX_WEBP, self::FORMAT_SUFFIX_AVIF, self::FORMAT_SUFFIX_JXL];
+
+	/** Formats Imagick can write animations in */
+	public const array ANIMATION_FORMATS = [self::FORMAT_SUFFIX_GIF, self::FORMAT_SUFFIX_WEBP];
 
 	public const string MIME_TYPE_WEBP = 'image/webp';
 	public const string MIME_TYPE_AVIF = 'image/avif';
@@ -67,11 +64,10 @@ final class Resizer implements IResizer
 	public const array SOURCE_SUFFIXES = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif', 'jxl'];
 	public const array SOURCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/jxl'];
 
-	private AbstractImagine $imagine;
 	private string $cacheDir;
-
-	/** @var array<string, Dimensions|null> source dimensions (after the EXIF orientation) by path */
-	private array $sourceDimensions = [];
+	private ImageProcessor $processor;
+	private ThumbnailWriter $writer;
+	private SourceDimensionsReader $dimensionsReader;
 
 
 	public function __construct(
@@ -83,7 +79,11 @@ final class Resizer implements IResizer
 
 		/** @var class-string<AbstractImagine> $library */
 		$library = 'Imagine\\' . $this->config->getLibrary() . '\\Imagine';
-		$this->imagine = new $library;
+		$imagine = new $library;
+
+		$this->processor = new ImageProcessor(new ImageLoader($imagine, $config), $config);
+		$this->writer = new ThumbnailWriter($config);
+		$this->dimensionsReader = new SourceDimensionsReader($imagine);
 	}
 
 
@@ -104,7 +104,7 @@ final class Resizer implements IResizer
 
 		// Concurrent requests for the same thumbnail (a page full of new images, CDN fetching in parallel)
 		// would all encode it - only one does, the others wait and use its result.
-		$lock = $this->acquireLock($thumbnailPath);
+		$lock = FileLock::acquire(rtrim($this->config->getTempDir(), '/\\') . '/resizer-locks', $thumbnailPath);
 
 		try {
 			clearstatcache(true, $thumbnailPath);
@@ -113,119 +113,10 @@ final class Resizer implements IResizer
 				$this->generate($sourceImagePath, $thumbnailPath, $geometry);
 			}
 		} finally {
-			$this->releaseLock($lock);
+			$lock?->release();
 		}
 
 		return $thumbnailPath;
-	}
-
-
-	private function generate(string $sourceImagePath, string $thumbnailPath, Geometry $geometry): void
-	{
-		$format = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
-
-		try {
-			$thumbnail = $this->processImage($sourceImagePath, $geometry, $format);
-		} catch (ImagineRuntimeException) {
-			throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
-		}
-
-		$options = $this->config->getOptions($geometry->getResizerParams()->getQuality());
-
-		if (self::isAnimated($thumbnail) && $thumbnail instanceof ImagickImage) {
-			// Imagine would flatten the frames into one image otherwise; the frame delays are kept (delay null)
-			$imagick = $thumbnail->getImagick();
-			$imagick->setFirstIterator();
-			$options += [
-				'animated' => true,
-				'format' => $format,
-				'animated.loops' => max(0, $imagick->getImageIterations()),
-			];
-		}
-
-		if ($this->config->isStrip()) {
-			// remove all comments & metadata
-			$thumbnail->strip();
-		}
-
-		// progressive JPEG; PNG interlacing (Adam7) makes files bigger, WEBP/AVIF/JXL ignore it
-		if ($this->config->isInterlace() && in_array($format, self::FORMAT_SUFFIXES_JPG, true)) {
-			$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
-		}
-
-		// encoder speed/effort, Imagine has no options for it
-		if ($thumbnail instanceof ImagickImage) {
-			foreach ($this->config->getImagickEncoderOptions($format) as $option => $value) {
-				$thumbnail->getImagick()->setOption($option, $value);
-			}
-		}
-
-		FileSystem::createDir(dirname($thumbnailPath));
-
-		// Write to a temporary file first and rename it, so a partially written thumbnail is never served
-		// (in static mode the file may be served directly by the web server as soon as it exists).
-		// The temporary name keeps the extension, Imagine derives the output format from it.
-		$tempPath = dirname($thumbnailPath) . DIRECTORY_SEPARATOR
-			. '.tmp-' . bin2hex(random_bytes(6)) . '-' . basename($thumbnailPath);
-
-		try {
-			$thumbnail->save($tempPath, $options);
-			// plain rename() is atomic and replaces the target (FileSystem::rename() deletes it first)
-			if (!@rename($tempPath, $thumbnailPath)) {
-				throw new RuntimeException(sprintf("Unable to write thumbnail '%s'.", $thumbnailPath));
-			}
-		} finally {
-			if (is_file($tempPath)) {
-				@unlink($tempPath);
-			}
-		}
-	}
-
-
-	/**
-	 * Exclusive lock of the thumbnail, in tempDir (the cache dir may be public). Null when the lock file
-	 * can't be created - the thumbnail is generated without it then (the write is atomic anyway).
-	 * @return array{resource, string}|null
-	 */
-	private function acquireLock(string $thumbnailPath): ?array
-	{
-		$dir = rtrim($this->config->getTempDir(), '/\\') . '/resizer-locks';
-		$path = $dir . '/' . md5($thumbnailPath) . '.lock';
-
-		try {
-			FileSystem::createDir($dir);
-		} catch (IOException) {
-			return null;
-		}
-
-		$handle = @fopen($path, 'c');
-
-		if ($handle === false) {
-			return null;
-		}
-
-		if (!flock($handle, LOCK_EX)) {
-			fclose($handle);
-			return null;
-		}
-
-		return [$handle, $path];
-	}
-
-
-	/** @param array{resource, string}|null $lock */
-	private function releaseLock(?array $lock): void
-	{
-		if ($lock === null) {
-			return;
-		}
-
-		[$handle, $path] = $lock;
-		// removed while still locked: the waiting requests hold their handles and find the thumbnail done,
-		// a race with a new request can at worst encode the thumbnail twice, never corrupt it
-		@unlink($path);
-		flock($handle, LOCK_UN);
-		fclose($handle);
 	}
 
 
@@ -233,65 +124,11 @@ final class Resizer implements IResizer
 	{
 		try {
 			$geometry = new Geometry($params ?? ResizerLinkGenerator::PARAMS_AUTO, $this->config->isUpscaleAllowed());
-			$source = $this->getSourceDimensions($this->getSourceImagePath($path));
+			$source = $this->dimensionsReader->read($this->getSourceImagePath($path));
 			return $source === null ? null : $geometry->getOutputDimensions($source);
 		} catch (ResizerException) {
 			return null;
 		}
-	}
-
-
-	/**
-	 * Dimensions as displayed (EXIF orientation applied), read from the header only. Cached per instance.
-	 */
-	private function getSourceDimensions(string $fullPath): ?Dimensions
-	{
-		if (array_key_exists($fullPath, $this->sourceDimensions)) {
-			return $this->sourceDimensions[$fullPath];
-		}
-
-		$dimensions = null;
-		$size = @getimagesize($fullPath);
-
-		if ($size !== false) {
-			$orientation = null;
-
-			if ($size[2] === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
-				$exif = @exif_read_data($fullPath, 'IFD0');
-				$orientation = is_array($exif) ? ($exif['Orientation'] ?? null) : null;
-			}
-
-			$dimensions = self::createOrientedDimensions($size[0], $size[1], $orientation);
-		} elseif ($this->imagine instanceof ImagickImagine) {
-			// formats getimagesize() does not know (JPEG XL)
-			try {
-				$imagick = new Imagick;
-				$imagick->pingImage($fullPath);
-				$dimensions = self::createOrientedDimensions(
-					$imagick->getImageWidth(),
-					$imagick->getImageHeight(),
-					$imagick->getImageOrientation(),
-				);
-			} catch (ImagickException) {
-			}
-		}
-
-		return $this->sourceDimensions[$fullPath] = $dimensions;
-	}
-
-
-	/**
-	 * Displayed dimensions - EXIF orientations 5-8 rotate by 90°. Null for invalid dimensions.
-	 */
-	private static function createOrientedDimensions(int $width, int $height, mixed $orientation): ?Dimensions
-	{
-		if ($width < 1 || $height < 1) {
-			return null;
-		}
-
-		return in_array($orientation, [5, 6, 7, 8], true)
-			? new Dimensions($height, $width)
-			: new Dimensions($width, $height);
 	}
 
 
@@ -349,110 +186,17 @@ final class Resizer implements IResizer
 	}
 
 
-	/**
-	 * Imagick + JPEG: the decoder scales the image down while decoding ("jpeg:size"), typically several
-	 * times faster and with a fraction of the memory for large photos. Otherwise a plain Imagine::open().
-	 */
-	private function openImage(string $path, Geometry $geometry, string $outputFormat): ImageInterface
+	private function generate(string $sourceImagePath, string $thumbnailPath, Geometry $geometry): void
 	{
-		$imagine = $this->imagine;
+		$format = strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION));
 
-		if (!$imagine instanceof ImagickImagine) {
-			return $imagine->open($path); // GD reads the first frame of animations only
-		}
-
-		$isJpeg = in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), self::FORMAT_SUFFIXES_JPG, true);
-		$hint = $isJpeg ? $this->getJpegDecodeSizeHint($path, $geometry) : null;
-
-		if (!$isJpeg || $hint !== null) {
-			try {
-				$imagick = new Imagick;
-
-				if ($hint !== null) {
-					$imagick->setOption('jpeg:size', $hint . 'x' . $hint);
-				}
-
-				// An animation (GIF, WEBP, APNG, ...) is kept only when the output format can hold it
-				// and it fits the memory limit, otherwise only the first frame is decoded.
-				$firstFrameOnly = !$isJpeg && (
-					!in_array($outputFormat, self::ANIMATION_FORMATS, true)
-					|| $this->exceedsAnimationLimit($path)
-				);
-				$imagick->readImage($firstFrameOnly ? $path . '[0]' : $path);
-
-				// Frames may cover only a part of the canvas (GIF deltas, even the first one) - make each a full
-				// canvas frame as displayed, so they can be resized/cropped. The iterator at the first frame.
-				if ($imagick->getNumberImages() > 1 || str_ends_with(strtolower($path), '.gif')) {
-					$imagick = $imagick->coalesceImages();
-				}
-
-				$imagick->setFirstIterator();
-
-				// the same as Imagine\Imagick\Imagine::open(), its palette detection is private
-				$palette = (fn(Imagick $imagick): PaletteInterface => $this->createPalette($imagick))
-					->call($imagine, $imagick);
-
-				return $imagine->getClassFactory()->createImage(
-					ClassFactoryInterface::HANDLE_IMAGICK,
-					$imagick,
-					$palette,
-					$imagine->getMetadataReader()->readFile($path),
-				);
-			} catch (ImagickException | Error) {
-				// Imagine opens it again and reports the error consistently
-				// (Error: the private Imagine method changed in a new version)
-			}
-		}
-
-		return $imagine->open($path);
-	}
-
-
-	private static function isAnimated(ImageInterface $image): bool
-	{
-		return $image instanceof ImagickImage && $image->getImagick()->getNumberImages() > 1;
-	}
-
-
-	/**
-	 * Frames × canvas size over the limit, from the headers only (pingImage). Unreadable = exceeding.
-	 */
-	private function exceedsAnimationLimit(string $path): bool
-	{
 		try {
-			$ping = new Imagick;
-			$ping->pingImage($path);
-			$frames = $ping->getNumberImages();
-
-			if ($frames < 2) {
-				return false;
-			}
-
-			$ping->setFirstIterator();
-			$page = $ping->getImagePage();
-			$width = max($page['width'], $ping->getImageWidth());
-			$height = max($page['height'], $ping->getImageHeight());
-
-			return $frames * $width * $height > $this->config->getMaxAnimationPixels();
-		} catch (ImagickException) {
-			return true;
-		}
-	}
-
-
-	/**
-	 * @return positive-int|null
-	 */
-	private function getJpegDecodeSizeHint(string $path, Geometry $geometry): ?int
-	{
-		$size = @getimagesize($path); // reads only the header
-
-		if ($size === false || $size[2] !== IMAGETYPE_JPEG || $size[0] < 1 || $size[1] < 1) {
-			return null;
+			$thumbnail = $this->processor->process($sourceImagePath, $geometry, $format);
+		} catch (ImagineRuntimeException) {
+			throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
 		}
 
-		$hint = $geometry->getDecodeSizeHint(new Dimensions($size[0], $size[1]));
-		return $hint === null ? null : Helpers::getPositiveInt($hint);
+		$this->writer->write($thumbnail, $thumbnailPath, $geometry->getResizerParams()->getQuality());
 	}
 
 
@@ -497,102 +241,5 @@ final class Resizer implements IResizer
 				$this->config->getMaxHeight(),
 			));
 		}
-	}
-
-
-	private function assertOutputDimensionsAllowed(Dimensions $dimensions): void
-	{
-		// a crop may need an intermediate image larger in one dimension, so only the area is limited
-		if ($dimensions->getWidth() * $dimensions->getHeight() > $this->config->getMaxWidth() * $this->config->getMaxHeight()) {
-			throw new DimensionsTooLargeException('Output dimensions exceed the limit.');
-		}
-	}
-
-
-	private function processImage(
-		string $imagePathFull,
-		Geometry $geometry,
-		string $outputFormat,
-	): ImageInterface {
-		$image = $this->openImage($imagePathFull, $geometry, $outputFormat);
-		$animated = self::isAnimated($image);
-
-		// before the size is read - a rotation by 90° swaps the dimensions (photos only, not animations)
-		if (!$animated) {
-			$this->autoOrient($image);
-		}
-
-		$imageCurSize = $image->getSize();
-
-		$sourceDimensions = new Dimensions(
-			Helpers::getPositiveInt($imageCurSize->getWidth()),
-			Helpers::getPositiveInt($imageCurSize->getHeight()),
-		);
-
-		$imageOutputSize = $geometry->calculateNewSize($sourceDimensions);
-		$this->assertOutputDimensionsAllowed($imageOutputSize);
-
-		// the same size (e.g. no upscaling): resampling would only blur the image and cost time
-		if (
-			$imageOutputSize->getWidth() !== $sourceDimensions->getWidth()
-			|| $imageOutputSize->getHeight() !== $sourceDimensions->getHeight()
-		) {
-			$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
-
-			// Imagine resizes coalesced frames and deconstructs them back to deltas, the iterator stays at the last
-			// (possibly smaller) frame - the first frame has the full size the crop is checked against
-			if ($animated && $image instanceof ImagickImage) {
-				$image->getImagick()->setFirstIterator();
-			}
-		}
-
-		if ($geometry->getResizerParams()->isCrop()) {
-			$cropBox = $geometry->getCropBox($sourceDimensions);
-			$image->crop(
-				$geometry->getCropPoint($imageOutputSize, $cropBox),
-				new Box($cropBox->getWidth(), $cropBox->getHeight()),
-			);
-		}
-
-		return $image;
-	}
-
-
-	/**
-	 * Rotates/flips the image by its EXIF orientation (photos from phones and cameras), the tag itself
-	 * is removed by strip() or reset, so the image is never rotated twice. The orientation is read
-	 * from the EXIF metadata (needs ext-exif), Imagick reads it on its own as a fallback.
-	 * Same transformations as Imagine\Filter\Basic\Autorotate.
-	 */
-	private function autoOrient(ImageInterface $image): void
-	{
-		$orientation = $image->metadata()['ifd0.Orientation'] ?? null;
-		$imagick = $image instanceof ImagickImage ? $image->getImagick() : null;
-
-		if ($orientation === null && $imagick !== null) {
-			$orientation = $imagick->getImageOrientation();
-		}
-
-		[$flip, $angle] = match (is_numeric($orientation) ? (int) $orientation : 0) {
-			2 => [true, 0], // top-right
-			3 => [false, 180], // bottom-right
-			4 => [true, 180], // bottom-left
-			5 => [true, -90], // left-top
-			6 => [false, 90], // right-top
-			7 => [true, 90], // right-bottom
-			8 => [false, -90], // left-bottom
-			default => [false, 0], // top-left or unknown
-		};
-
-		if ($flip) {
-			$image->flipHorizontally();
-		}
-
-		if ($angle !== 0) {
-			$image->rotate($angle);
-		}
-
-		// the pixels are upright now, metadata kept with strip: false must not rotate the image again
-		$imagick?->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
 	}
 }
