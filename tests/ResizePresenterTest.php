@@ -8,6 +8,7 @@ use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
+use Nelson\Resizer\UrlSigner;
 use Nette\Application\BadRequestException;
 use Nette\Application\Request as AppRequest;
 use Nette\Application\Response;

@@ -12,6 +12,7 @@ use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Resizer;
 use Nelson\Resizer\ResizerConfig;
 use Nelson\Resizer\ResizerLinkGenerator;
+use Nelson\Resizer\UrlSigner;
 use Nette\Application\LinkGenerator;
 use Nette\Application\PresenterFactory;
 use Nette\Application\Routers\RouteList;
