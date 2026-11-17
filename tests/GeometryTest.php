@@ -131,6 +131,54 @@ class GeometryTest extends TestCase
 	}
 
 
+	/**
+	 * Source 1600x900: params, expected resized image, expected output (crop box), expected crop point
+	 * @return iterable<string, array{string, array{int, int}, array{int, int}, array{int, int}|null}>
+	 */
+	public static function provideWithoutUpscale(): iterable
+	{
+		yield 'downscale unchanged' => ['800x', [800, 450], [800, 450], null];
+		yield 'width' => ['2000x', [1600, 900], [1600, 900], null];
+		yield 'height' => ['x1000', [1600, 900], [1600, 900], null];
+		yield 'both' => ['3000x2000', [1600, 900], [1600, 900], null];
+		yield 'forced' => ['2000x1000!', [2000, 1000], [2000, 1000], null];
+		yield 'crop fits' => ['c400xc300', [533, 300], [400, 300], [66, 0]];
+		// crop box 2000x1000 scaled by 0.8 to fit: 1600x800, centered vertically
+		yield 'crop bigger' => ['c2000xc1000', [1600, 900], [1600, 800], [0, 50]];
+		yield 'crop wider' => ['l3200xb900', [1600, 900], [1600, 450], [0, 450]];
+		yield 'crop forced' => ['c2000xc2000!', [2000, 2000], [2000, 2000], [0, 0]];
+	}
+
+
+	/**
+	 * @param array{int, int} $resized
+	 * @param array{int, int} $output
+	 * @param array{int, int}|null $cropPoint
+	 */
+	#[DataProvider('provideWithoutUpscale')]
+	public function testWithoutUpscale(string $params, array $resized, array $output, ?array $cropPoint): void
+	{
+		$geometry = new Geometry($params, allowUpscale: false);
+		$resizedDimensions = $geometry->calculateNewSize(self::$sourceDimensions);
+		$outputDimensions = $geometry->getOutputDimensions(self::$sourceDimensions);
+
+		$this->assertSame($resized, [$resizedDimensions->getWidth(), $resizedDimensions->getHeight()], 'resized');
+		$this->assertSame($output, [$outputDimensions->getWidth(), $outputDimensions->getHeight()], 'output');
+
+		if ($cropPoint !== null) {
+			$point = $geometry->getCropPoint($resizedDimensions, $geometry->getCropBox(self::$sourceDimensions));
+			$this->assertSame($cropPoint, [$point->getX(), $point->getY()], 'crop point');
+		}
+	}
+
+
+	public function testDecodeSizeHintWithoutUpscale(): void
+	{
+		// the output is the source itself, nothing to reduce
+		$this->assertNull((new Geometry('8000x', allowUpscale: false))->getDecodeSizeHint(new Dimensions(4000, 3000)));
+	}
+
+
 	/** @return iterable<string, array{string, int|null}> */
 	public static function provideDecodeSizeHint(): iterable
 	{

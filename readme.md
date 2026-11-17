@@ -39,6 +39,7 @@
 		webpMethod: null # 0 - 6, higher = slower encoding, smaller files (Imagick only, null = 4)
 		maxWidth: 4000 # max. requested width, larger requests get HTTP 400
 		maxHeight: 4000 # max. requested height; the output area is limited to maxWidth * maxHeight
+		allowUpscale: false # thumbnails are never bigger than the source (forced dimensions "!" excepted), see below
 		secret: null # at least 32 characters, enables signed URLs, see below
 		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
@@ -130,6 +131,16 @@ Syntax:
 - `ifresize`
 	- Example: `ifresize-100x200`
 	- If the image is smaller than the desired width and/or height, image will not be enlarged.
+	- With `allowUpscale: false` (the default) no image is enlarged, `ifresize` matters only with `allowUpscale: true`.
+
+### Upscaling
+
+With `allowUpscale: false` (the default) a thumbnail is never bigger than its source - an enlarged image is a bigger
+file with no added detail. A smaller source is kept at its size, a crop box bigger than the source is scaled down
+keeping its aspect ratio (`c800xc1000` on a 500x500 image gives 400x500). Forced dimensions (`100x50!`) are always
+respected. `{rsrcset}`, `{rpicture}` and `rsize()` use the real dimensions, so `width`/`height` attributes match.
+
+The thumbnail name does not depend on the option - delete the cache after changing it.
 - Quality
   	- Example: `x-q50` - sets just the quality without any resize.
   	- For WEBP/AVIF quality set to `100` means lossless compression.
@@ -253,6 +264,8 @@ In PHP: `ResizerLinkGenerator::srcset()`, `picture()` and `getDimensions()`.
 - All resizer exceptions extend `Nelson\Resizer\Exceptions\ResizerException`. Unsupported format throws
   `UnsupportedFormatException`, too large dimensions `DimensionsTooLargeException`.
 - `ResizePresenter` returns 400 for invalid requests (was 404) and sends `Vary: Accept` when the format is negotiated.
+- Images are no longer enlarged by default (`allowUpscale: false`), set `allowUpscale: true` for the previous behavior
+  and delete the thumbnail cache after the upgrade (existing upscaled thumbnails are kept otherwise).
 - Crop dimensions may differ by 1px from 8.x (rounding fix), cached thumbnails do not need to be regenerated.
 - `ResizerParams::isIfresize()` was renamed to `isIfResize()`.
 - WEBP is preferred over AVIF now (`formatPriority: [jxl, webp, avif]`), set `formatPriority: [avif, webp]`

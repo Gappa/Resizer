@@ -78,6 +78,13 @@ final class ResizerConfigDTO
 	public int $maxHeight = 4000;
 
 	/**
+	 * Allow thumbnails bigger than the source. When false, a smaller source is kept at its size
+	 * (bigger files with no added detail are avoided) and a crop box bigger than the source is scaled down
+	 * keeping its aspect ratio. Forced dimensions ("!") are always respected.
+	 */
+	public bool $allowUpscale = false;
+
+	/**
 	 * Secret key for signing URLs (at least 32 characters). When set, the resize presenter
 	 * refuses requests without a valid signature. Null disables signing.
 	 */

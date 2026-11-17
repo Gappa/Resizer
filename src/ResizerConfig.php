@@ -273,6 +273,12 @@ final class ResizerConfig
 	}
 
 
+	public function isUpscaleAllowed(): bool
+	{
+		return $this->config->allowUpscale;
+	}
+
+
 	/** Secret for signing URLs, null when signing is disabled */
 	public function getSecret(): ?string
 	{

@@ -283,13 +283,46 @@ class ResizerTest extends TestCase
 		// the source is 500x500
 		$this->assertSame([100, 100], $dimensions('100x'));
 		$this->assertSame([100, 50], $dimensions('c100xc50'));
-		$this->assertSame([1000, 1000], $dimensions('1000x'));
+		// allowUpscale: false by default
+		$this->assertSame([500, 500], $dimensions('1000x'));
+		$this->assertSame([400, 500], $dimensions('c800xc1000'));
 		$this->assertSame([500, 500], $dimensions('ifresize-1000x'));
 		$this->assertSame([500, 500], $dimensions(null));
 		$this->assertNull($dimensions('nonsense'));
 		$this->assertNull($dimensions('ifresize-c10xc10'));
 		$this->assertNull($dimensions('100x', 'does_not_exist.png'));
 		$this->assertNull($dimensions('100x', '../composer.json'));
+	}
+
+
+	public function testUpscale(): void
+	{
+		// the source is 500x500
+		$thumbnail = self::$resizer->process(self::$image, '800x');
+		$this->assertSame([500, 500], array_slice((array) getimagesize($thumbnail), 0, 2), 'not upscaled by default');
+
+		$thumbnail = self::$resizer->process(self::$image, 'c800xc1000');
+		$this->assertSame([400, 500], array_slice((array) getimagesize($thumbnail), 0, 2), 'crop box scaled down');
+
+		$dto = new ResizerConfigDTO;
+		$dto->tempDir = __DIR__ . '/../temp';
+		$dto->wwwDir = __DIR__;
+		$dto->library = 'Gd';
+		$dto->allowUpscale = true;
+		$dto->cache = '/resizer-upscale/'; // the thumbnail name does not depend on the option
+		$config = new ResizerConfig($dto);
+		$resizer = new Resizer($config, new OutputFormat(new Request(new UrlScript), $config));
+
+		try {
+			$thumbnail = $resizer->process(self::$image, '800x');
+			$this->assertSame([800, 800], array_slice((array) getimagesize($thumbnail), 0, 2), 'upscaled');
+			$this->assertSame([800, 1000], [
+				$resizer->getOutputDimensions(self::$image, 'c800xc1000')?->getWidth(),
+				$resizer->getOutputDimensions(self::$image, 'c800xc1000')?->getHeight(),
+			]);
+		} finally {
+			FileSystem::delete($dto->tempDir . $dto->cache);
+		}
 	}
 
 

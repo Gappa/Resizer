@@ -90,7 +90,7 @@ final class Resizer implements IResizer
 		?string $format = null,
 	): string {
 		// validate everything before touching the filesystem
-		$geometry = new Geometry($params);
+		$geometry = new Geometry($params, $this->config->isUpscaleAllowed());
 		$this->assertRequestedDimensionsAllowed($geometry->getResizerParams());
 		$sourceImagePath = $this->getSourceImagePath($path);
 		$thumbnailPath = $this->getThumbnailPath($path, $params, $format);
@@ -216,7 +216,7 @@ final class Resizer implements IResizer
 	public function getOutputDimensions(string $path, ?string $params): ?Dimensions
 	{
 		try {
-			$geometry = new Geometry($params ?? ResizerLinkGenerator::PARAMS_AUTO);
+			$geometry = new Geometry($params ?? ResizerLinkGenerator::PARAMS_AUTO, $this->config->isUpscaleAllowed());
 			$source = $this->getSourceDimensions($this->getSourceImagePath($path));
 			return $source === null ? null : $geometry->getOutputDimensions($source);
 		} catch (ResizerException) {
@@ -456,15 +456,19 @@ final class Resizer implements IResizer
 		$imageOutputSize = $geometry->calculateNewSize($sourceDimensions);
 		$this->assertOutputDimensionsAllowed($imageOutputSize);
 
-		$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
+		// the same size (e.g. no upscaling): resampling would only blur the image and cost time
+		if (
+			$imageOutputSize->getWidth() !== $sourceDimensions->getWidth()
+			|| $imageOutputSize->getHeight() !== $sourceDimensions->getHeight()
+		) {
+			$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
+		}
 
 		if ($geometry->getResizerParams()->isCrop()) {
+			$cropBox = $geometry->getCropBox($sourceDimensions);
 			$image->crop(
-				$geometry->getCropPoint($imageOutputSize),
-				new Box(
-					Helpers::getPositiveInt($geometry->getResizerParams()->getWidth()),
-					Helpers::getPositiveInt($geometry->getResizerParams()->getHeight()),
-				),
+				$geometry->getCropPoint($imageOutputSize, $cropBox),
+				new Box($cropBox->getWidth(), $cropBox->getHeight()),
 			);
 		}
 
