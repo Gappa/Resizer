@@ -3,32 +3,39 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Imagine\Exception\RuntimeException;
+use Imagine\Exception\RuntimeException as ImagineRuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
+use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\SecurityException;
-use Nette\SmartObject;
 use Nette\Utils\FileSystem;
+use RuntimeException;
 
 final class Resizer implements IResizer
 {
-	use SmartObject;
+	public const string FORMAT_SUFFIX_JPG = 'jpg';
+	public const string FORMAT_SUFFIX_WEBP = 'webp';
+	public const string FORMAT_SUFFIX_AVIF = 'avif';
+	public const string FORMAT_SUFFIX_PNG = 'png';
 
-	public const FORMAT_SUFFIX_JPG = 'jpg';
-	public const FORMAT_SUFFIX_WEBP = 'webp';
-	public const FORMAT_SUFFIX_AVIF = 'avif';
-	public const FORMAT_SUFFIX_PNG = 'png';
-
-	public const FORMAT_SUFFIXES_JPG = [
+	public const array FORMAT_SUFFIXES_JPG = [
 		'jpg',
 		'jpeg',
 		'jfif',
 	];
 
-	public const MIME_TYPE_WEBP = 'image/webp';
-	public const MIME_TYPE_AVIF = 'image/avif';
+	public const string MIME_TYPE_WEBP = 'image/webp';
+	public const string MIME_TYPE_AVIF = 'image/avif';
+
+	/**
+	 * Source image types the resizer opens. Anything else is refused, so ImageMagick never
+	 * parses SVG, MVG, MSL, PDF and other formats with a history of vulnerabilities.
+	 */
+	public const array SOURCE_SUFFIXES = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'avif'];
+	public const array SOURCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
 
 	private AbstractImagine $imagine;
 	private string $cacheDir;
@@ -37,14 +44,13 @@ final class Resizer implements IResizer
 	public function __construct(
 		private readonly ResizerConfig $config,
 		private readonly OutputFormat $outputFormat,
-	)
-	{
+	) {
 		$this->cacheDir = $this->config->getPublicCacheDir()
 			?? $this->config->getTempDir() . $this->config->getCache();
 		FileSystem::createDir($this->cacheDir);
 
-		/** @var AbstractImagine $library */
-		$library = implode('\\', ['Imagine', $this->config->getLibrary(), 'Imagine']);
+		/** @var class-string<AbstractImagine> $library */
+		$library = 'Imagine\\' . $this->config->getLibrary() . '\\Imagine';
 		$this->imagine = new $library;
 	}
 
@@ -54,46 +60,49 @@ final class Resizer implements IResizer
 		?string $params,
 		?string $format = null,
 	): string {
+		// validate everything before touching the filesystem
+		$geometry = new Geometry($params);
+		$this->assertRequestedDimensionsAllowed($geometry->getResizerParams());
 		$sourceImagePath = $this->getSourceImagePath($path);
-
 		$thumbnailPath = $this->getThumbnailPath($path, $params, $format);
+
+		if ($this->isThumbnailFresh($thumbnailPath, $sourceImagePath)) {
+			return $thumbnailPath;
+		}
+
+		try {
+			$thumbnail = $this->processImage($sourceImagePath, $geometry);
+		} catch (ImagineRuntimeException) {
+			throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
+		}
+
+		if ($this->config->isStrip()) {
+			// remove all comments & metadata
+			$thumbnail->strip();
+		}
+
+		// use progressive/interlace mode?
+		if ($this->config->isInterlace()) {
+			$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
+		}
+
 		FileSystem::createDir(dirname($thumbnailPath));
 
-		$geometry = new Geometry($params);
+		// Write to a temporary file first and rename it, so a partially written thumbnail is never served
+		// (in static mode the file may be served directly by the web server as soon as it exists).
+		// The temporary name keeps the extension, Imagine derives the output format from it.
+		$tempPath = dirname($thumbnailPath) . DIRECTORY_SEPARATOR
+			. '.tmp-' . bin2hex(random_bytes(6)) . '-' . basename($thumbnailPath);
 
-		if (!$this->thumbnailExists($thumbnailPath)) {
-			try {
-				$thumbnail = $this->processImage($sourceImagePath, $geometry);
-			} catch (RuntimeException) {
-				throw new ImageNotFoundOrReadableException('Unable to open image - wrong permissions, empty or corrupted.');
+		try {
+			$thumbnail->save($tempPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
+			// plain rename() is atomic and replaces the target (FileSystem::rename() deletes it first)
+			if (!@rename($tempPath, $thumbnailPath)) {
+				throw new RuntimeException(sprintf("Unable to write thumbnail '%s'.", $thumbnailPath));
 			}
-
-			if ($this->config->isStrip()) {
-				// remove all comments & metadata
-				$thumbnail->strip();
-			}
-
-			// use progressive/interlace mode?
-			if ($this->config->isInterlace()) {
-				$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
-			}
-
-			// Write to a temporary file first and rename it, so a partially written thumbnail is never served
-			// (in static mode the file may be served directly by the web server as soon as it exists).
-			// The temporary name keeps the extension, Imagine derives the output format from it.
-			$tempPath = dirname($thumbnailPath) . DIRECTORY_SEPARATOR
-				. '.tmp-' . bin2hex(random_bytes(6)) . '-' . basename($thumbnailPath);
-
-			try {
-				$thumbnail->save($tempPath, $this->config->getOptions($geometry->getResizerParams()->getQuality()));
-				// plain rename() is atomic and replaces the target (FileSystem::rename() deletes it first)
-				if (!@rename($tempPath, $thumbnailPath)) {
-					throw new ImageNotFoundOrReadableException(sprintf("Unable to write thumbnail '%s'.", $thumbnailPath));
-				}
-			} finally {
-				if (is_file($tempPath)) {
-					@unlink($tempPath);
-				}
+		} finally {
+			if (is_file($tempPath)) {
+				@unlink($tempPath);
 			}
 		}
 
@@ -103,15 +112,24 @@ final class Resizer implements IResizer
 
 	public function getSourceImagePath(string $path): string
 	{
-		$fullPath = (string) realpath($this->config->getWwwDir() . DIRECTORY_SEPARATOR . $path);
+		$this->assertSafePath($path);
 
-		// wonky, but better than nothing
-		if (str_contains($path, '../')) {
-			throw new SecurityException('Attempt to access files outside permitted path.');
+		$suffix = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+		if (!in_array($suffix, self::SOURCE_SUFFIXES, true)) {
+			throw new ImageNotFoundOrReadableException('Source image type not supported.');
 		}
 
-		if (!is_file($fullPath)) {
+		$fullPath = realpath($this->config->getWwwDir() . DIRECTORY_SEPARATOR . ltrim($path, '/'));
+
+		if ($fullPath === false || !is_file($fullPath) || !is_readable($fullPath)) {
 			throw new ImageNotFoundOrReadableException('Source image not found or not readable.');
+		}
+
+		$mimeType = @mime_content_type($fullPath);
+
+		if (!in_array($mimeType, self::SOURCE_MIME_TYPES, true)) {
+			throw new ImageNotFoundOrReadableException('Source image type not supported.');
 		}
 
 		return $fullPath;
@@ -126,7 +144,13 @@ final class Resizer implements IResizer
 		?string $params,
 		?string $format = null,
 	): string {
-		return $this->cacheDir . $path . DIRECTORY_SEPARATOR
+		$this->assertSafePath($path);
+
+		if ($params === null || !preg_match(ResizerParamsParser::PATTERN, $params)) {
+			throw new CouldNotParseResizerParamsException('Wrong params format.');
+		}
+
+		return $this->cacheDir . ltrim($path, '/') . DIRECTORY_SEPARATOR
 			. $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
 	}
 
@@ -137,9 +161,60 @@ final class Resizer implements IResizer
 	}
 
 
+	/**
+	 * The thumbnail exists and is not older than the source image (a changed source is regenerated).
+	 */
+	private function isThumbnailFresh(string $thumbnailPath, string $sourceImagePath): bool
+	{
+		return $this->thumbnailExists($thumbnailPath)
+			&& filemtime($thumbnailPath) >= filemtime($sourceImagePath);
+	}
+
+
+	/**
+	 * Refuses traversal ("..") segments, NUL bytes and backslashes (a path separator on Windows).
+	 * Symlinks inside wwwDir are intentionally allowed (e.g. shared storage in deployments).
+	 */
+	private function assertSafePath(string $path): void
+	{
+		if (
+			$path === ''
+			|| str_contains($path, "\0")
+			|| str_contains($path, '\\')
+			|| in_array('..', explode('/', $path), true)
+		) {
+			throw new SecurityException('Attempt to access files outside permitted path.');
+		}
+	}
+
+
+	private function assertRequestedDimensionsAllowed(ResizerParams $params): void
+	{
+		if (
+			($params->getWidth() ?? 0) > $this->config->getMaxWidth()
+			|| ($params->getHeight() ?? 0) > $this->config->getMaxHeight()
+		) {
+			throw new DimensionsTooLargeException(sprintf(
+				'Requested dimensions exceed the limit of %dx%d.',
+				$this->config->getMaxWidth(),
+				$this->config->getMaxHeight(),
+			));
+		}
+	}
+
+
+	private function assertOutputDimensionsAllowed(Dimensions $dimensions): void
+	{
+		// a crop may need an intermediate image larger in one dimension, so only the area is limited
+		if ($dimensions->getWidth() * $dimensions->getHeight() > $this->config->getMaxWidth() * $this->config->getMaxHeight()) {
+			throw new DimensionsTooLargeException('Output dimensions exceed the limit.');
+		}
+	}
+
+
 	private function processImage(
 		string $imagePathFull,
-		Geometry $geometry
+		Geometry $geometry,
 	): ImageInterface {
 		$image = $this->imagine->open($imagePathFull);
 
@@ -151,8 +226,10 @@ final class Resizer implements IResizer
 		);
 
 		$imageOutputSize = $geometry->calculateNewSize($sourceDimensions);
+		$this->assertOutputDimensionsAllowed($imageOutputSize);
 
 		$image->resize(new Box($imageOutputSize->getWidth(), $imageOutputSize->getHeight()));
+
 		if ($geometry->getResizerParams()->isCrop()) {
 			$image->crop(
 				$geometry->getCropPoint($imageOutputSize),

@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Exceptions;
 
-use Exception;
-
-final class SecurityException extends Exception
+final class SecurityException extends ResizerException
 {
 }

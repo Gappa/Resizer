@@ -33,9 +33,14 @@ final class ResizerExtension extends CompilerExtension
 	{
 		return Expect::from(new ResizerConfigDTO, [
 			'library' => Expect::anyOf('Gd', 'Imagick', 'Gmagick')->default('Imagick'),
-			'qualityWebp' => Expect::int(75)->min(0)->max(100),
-			'qualityJpeg' => Expect::int(75)->min(0)->max(100),
+			'wwwDir' => Expect::string()->required(),
+			'tempDir' => Expect::string()->required(),
+			'qualityAvif' => Expect::int(70)->min(0)->max(100),
+			'qualityWebp' => Expect::int(70)->min(0)->max(100),
+			'qualityJpeg' => Expect::int(70)->min(0)->max(100),
 			'compressionPng' => Expect::int(9)->min(0)->max(9),
+			'maxWidth' => Expect::int(4000)->min(1),
+			'maxHeight' => Expect::int(4000)->min(1),
 		]);
 	}
 

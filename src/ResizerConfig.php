@@ -175,6 +175,20 @@ final class ResizerConfig
 	}
 
 
+	/** @return positive-int */
+	public function getMaxWidth(): int
+	{
+		return $this->config->maxWidth;
+	}
+
+
+	/** @return positive-int */
+	public function getMaxHeight(): int
+	{
+		return $this->config->maxHeight;
+	}
+
+
 	/**
 	 * @param int<0,100>|null $quality
 	 * @return array{

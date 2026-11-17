@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer;
 
-use Exception;
+use Nelson\Resizer\Exceptions\UnsupportedFormatException;
 use Nette\Http\Request;
 use Nette\SmartObject;
 
@@ -62,7 +62,8 @@ final class OutputFormat
 			};
 		}
 
-		$this->isFormatSupported($format);
+		$format = strtolower($format);
+		$this->assertFormatSupported($format);
 		return $format;
 	}
 
@@ -107,10 +108,10 @@ final class OutputFormat
 	}
 
 
-	private function isFormatSupported(string $format): void
+	private function assertFormatSupported(string $format): void
 	{
-		if (!in_array(strtolower($format), $this->config->getSupportedFormats(), true)) {
-			throw new Exception(sprintf(
+		if (!in_array($format, $this->config->getSupportedFormats(), true)) {
+			throw new UnsupportedFormatException(sprintf(
 				"Format '%s' not supported (%s).",
 				$format, implode(', ', $this->config->getSupportedFormats()),
 			));

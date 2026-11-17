@@ -3,26 +3,20 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Presenters;
 
-use Exception;
+use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
+use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\IResizer;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\Responses\TextResponse;
 use Nette\Application\UI\Presenter;
 use Nette\Http\Context;
-use Nette\Http\IRequest;
 use Nette\Http\IResponse;
-use Nette\Utils\DateTime;
 
 final class ResizePresenter extends Presenter
 {
-	private IRequest $request;
-	private IResponse $response;
-
-
 	public function __construct(
 		private readonly IResizer $resizer,
-	)
-	{
+	) {
 		parent::__construct();
 	}
 
@@ -30,13 +24,13 @@ final class ResizePresenter extends Presenter
 	public function startup(): void
 	{
 		parent::startup();
-		$this->request = $this->getHttpRequest();
-		$this->response = $this->getHttpResponse();
 
-		// Get rid of troublemaking headers
-		$this->response->setHeader('Pragma', '');
-		$this->response->setHeader('Cache-Control', '');
-		$this->getSession()->close();
+		// image responses do not need the session, release its lock as soon as possible
+		$session = $this->getSession();
+
+		if ($session->isStarted()) {
+			$session->close();
+		}
 	}
 
 
@@ -46,52 +40,47 @@ final class ResizePresenter extends Presenter
 		?string $format = null,
 	): void {
 		try {
-			$image = $this->resizer->process(
-				$file,
-				$params,
-				$format,
-			);
-		} catch (Exception $e) {
-			$this->error($e->getMessage());
+			$image = $this->resizer->process($file, $params, $format);
+		} catch (ImageNotFoundOrReadableException) {
+			$this->error('Image not found.');
+		} catch (ResizerException) {
+			// invalid params, path, format or dimensions; details are not disclosed
+			$this->error('Invalid image request.', IResponse::S400_BadRequest);
 		}
 
-		$context = new Context($this->request, $this->response);
-		$etag = $this->getEtag($this->resizer->getSourceImagePath($file), $image);
+		$httpRequest = $this->getHttpRequest();
+		$httpResponse = $this->getHttpResponse();
 
-		if (!$context->isModified(null, $etag)) {
-			$this->response->setCode(IResponse::S304_NOT_MODIFIED);
+		// without an explicit format the output depends on the Accept header (WEBP/AVIF negotiation),
+		// shared caches (CDN, proxies) must not serve one variant to all browsers
+		if ($format === null) {
+			$httpResponse->setHeader('Vary', 'Accept');
+		}
+
+		$httpResponse->setExpiration('1 year');
+
+		$lastModified = (int) filemtime($image);
+		$etag = md5($image . '|' . $lastModified . '|' . filesize($image));
+
+		if (!(new Context($httpRequest, $httpResponse))->isModified($lastModified, $etag)) {
+			// isModified() has already set the 304 status code
 			$this->sendResponse(new TextResponse(''));
-		} else {
-			$fileResponse = new FileResponse(
-				$image,
-				pathinfo($file, PATHINFO_BASENAME),
-				$this->getMimeType($image),
-				false,
-			);
-
-			$now = new DateTime;
-
-			$this->response->setExpiration($now->modify('+1 YEAR')->format('Y-m-d H:i:s'));
-			$this->sendResponse($fileResponse);
 		}
+
+		$extension = pathinfo($image, PATHINFO_EXTENSION);
+
+		$this->sendResponse(new FileResponse(
+			$image,
+			pathinfo($file, PATHINFO_FILENAME) . '.' . $extension,
+			$this->getMimeType($image),
+			forceDownload: false,
+		));
 	}
 
 
-	private function getMimeType(string $filePath): ?string
+	private function getMimeType(string $filePath): string
 	{
 		$mime = mime_content_type($filePath);
-
-		if ($mime === false) {
-			return null;
-		}
-
-		return $mime;
+		return $mime === false ? 'application/octet-stream' : $mime;
 	}
-
-
-	private function getEtag(string $srcFile, string $dstFile): string
-	{
-		return filemtime($srcFile) . '-' . md5($dstFile);
-	}
-
 }

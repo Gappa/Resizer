@@ -39,4 +39,14 @@ final class ResizerConfigDTO
 
 	/** @var int<0, 9> */
 	public int $compressionPng = 9;
+
+	/**
+	 * Maximum requested width/height. The output area is limited to maxWidth * maxHeight as well
+	 * (a crop may need a larger intermediate image). Protects against DoS by huge thumbnails.
+	 * @var positive-int
+	 */
+	public int $maxWidth = 4000;
+
+	/** @var positive-int */
+	public int $maxHeight = 4000;
 }

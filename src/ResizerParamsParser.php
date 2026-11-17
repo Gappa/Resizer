@@ -13,9 +13,9 @@ class ResizerParamsParser
 	public const PATTERN_IR = 'ir/';
 	public const PATTERN_AUTO = '?:auto'; 										# use the image as-is, only compress/convert
 	public const PATTERN_IFRESIZE = '(?:(ifresize)-)?';					# ifresize modifier
-	public const PATTERN_WIDTH_MOD = '([lcr]?)([1-9][0-9]*)?';			# width modifer and dimension
+	public const PATTERN_WIDTH_MOD = '([lcr]?)([1-9][0-9]{0,4})?';			# width modifier and dimension (max. 5 digits)
 	public const PATTERN_DIVIDER = 'x';											# divider
-	public const PATTERN_HEIGHT_MOD = '([tcb]?)([1-9][0-9]*)?';			# height modifier and dimension
+	public const PATTERN_HEIGHT_MOD = '([tcb]?)([1-9][0-9]{0,4})?';			# height modifier and dimension (max. 5 digits)
 	public const PATTERN_FORCE_DIMS = '(!?)';									# force dimensions, disregard aspect ratio
 	public const PATTERN_MARGIN_H = '(?:-hm([+-]?[0-9]*))?';				# horizontal margin, unused
 	public const PATTERN_MARGIN_V = '(?:-vm([+-]?[0-9]*))?';				# vertical margin, unused
