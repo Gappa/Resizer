@@ -234,36 +234,48 @@ final class Resizer implements IResizer
 			return $this->sourceDimensions[$fullPath];
 		}
 
-		$width = $height = $orientation = null;
+		$dimensions = null;
 		$size = @getimagesize($fullPath);
 
 		if ($size !== false) {
-			[$width, $height] = $size;
+			$orientation = null;
 
 			if ($size[2] === IMAGETYPE_JPEG && function_exists('exif_read_data')) {
 				$exif = @exif_read_data($fullPath, 'IFD0');
 				$orientation = is_array($exif) ? ($exif['Orientation'] ?? null) : null;
 			}
+
+			$dimensions = self::createOrientedDimensions($size[0], $size[1], $orientation);
 		} elseif ($this->imagine instanceof ImagickImagine) {
 			// formats getimagesize() does not know (JPEG XL)
 			try {
 				$imagick = new Imagick;
 				$imagick->pingImage($fullPath);
-				[$width, $height, $orientation] = [$imagick->getImageWidth(), $imagick->getImageHeight(), $imagick->getImageOrientation()];
+				$dimensions = self::createOrientedDimensions(
+					$imagick->getImageWidth(),
+					$imagick->getImageHeight(),
+					$imagick->getImageOrientation(),
+				);
 			} catch (ImagickException) {
 			}
 		}
 
-		$dimensions = null;
+		return $this->sourceDimensions[$fullPath] = $dimensions;
+	}
 
-		if (is_int($width) && is_int($height) && $width > 0 && $height > 0) {
-			// orientations 5-8 rotate by 90°
-			$dimensions = in_array($orientation, [5, 6, 7, 8], true)
-				? new Dimensions($height, $width)
-				: new Dimensions($width, $height);
+
+	/**
+	 * Displayed dimensions - EXIF orientations 5-8 rotate by 90°. Null for invalid dimensions.
+	 */
+	private static function createOrientedDimensions(int $width, int $height, mixed $orientation): ?Dimensions
+	{
+		if ($width < 1 || $height < 1) {
+			return null;
 		}
 
-		return $this->sourceDimensions[$fullPath] = $dimensions;
+		return in_array($orientation, [5, 6, 7, 8], true)
+			? new Dimensions($height, $width)
+			: new Dimensions($width, $height);
 	}
 
 
