@@ -24,7 +24,8 @@
 	"suggest": {
 		"ext-imagick": "Imagick library (recommended, required for JPEG XL)",
 		"ext-gd": "GD library",
-		"ext-gmagick": "Gmagick library"
+		"ext-gmagick": "Gmagick library",
+		"ext-exif": "EXIF orientation of photos with GD and Gmagick (Imagick reads it on its own)"
 	},
 	"autoload": {
 		"psr-4": {

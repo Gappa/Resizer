@@ -200,6 +200,85 @@ class ResizerTest extends TestCase
 	}
 
 
+	public function testExifOrientationWithGd(): void
+	{
+		if (!function_exists('exif_read_data')) {
+			$this->markTestSkipped('ext-exif is required to read the orientation with GD.');
+		}
+
+		// landscape pixels 200x100, EXIF says "rotate 90° clockwise" -> displayed as portrait 100x200
+		self::createJpegWithOrientation(self::PUBLIC_DIR . '/rotated.jpg', 6);
+
+		$size = getimagesize(self::$resizer->process('_public/rotated.jpg', '50x'));
+		$this->assertSame([50, 100], [$size[0] ?? 0, $size[1] ?? 0]);
+	}
+
+
+	public function testExifOrientationWithImagick(): void
+	{
+		if (!extension_loaded('imagick')) {
+			$this->markTestSkipped('Imagick is not available.');
+		}
+
+		self::createJpegWithOrientation(self::PUBLIC_DIR . '/rotated-imagick.jpg', 8);
+
+		$dto = new ResizerConfigDTO;
+		$dto->tempDir = __DIR__ . '/../temp';
+		$dto->wwwDir = __DIR__;
+		$dto->library = 'Imagick';
+		$dto->strip = false; // the orientation tag must be reset, not only stripped
+		$config = new ResizerConfig($dto);
+		$resizer = new Resizer($config, new OutputFormat(new Request(new UrlScript), $config));
+
+		$thumbnail = $resizer->process('_public/rotated-imagick.jpg', '50x');
+		$image = new Imagick($thumbnail);
+
+		$this->assertSame([50, 100], [$image->getImageWidth(), $image->getImageHeight()]);
+		$this->assertContains($image->getImageOrientation(), [Imagick::ORIENTATION_UNDEFINED, Imagick::ORIENTATION_TOPLEFT]);
+	}
+
+
+	public function testPngIsNotInterlaced(): void
+	{
+		// interlace: true is the default, Adam7 would make the PNG bigger
+		$thumbnail = self::$resizer->process(self::$image, 'x120', 'png');
+
+		// IHDR: 8 bytes signature, 4 length, 4 type, 4 width, 4 height, depth, color, compression, filter, interlace
+		$this->assertSame(0, ord(((string) file_get_contents($thumbnail, length: 29))[28]));
+	}
+
+
+	public function testJpegIsProgressive(): void
+	{
+		$thumbnail = self::$resizer->process(self::$image, 'x120', 'jpg');
+
+		// SOF2 marker = progressive DCT
+		$this->assertStringContainsString("\xFF\xC2", (string) file_get_contents($thumbnail));
+	}
+
+
+	/**
+	 * JPEG 200x100 with an EXIF APP1 segment containing only the Orientation tag.
+	 */
+	private static function createJpegWithOrientation(string $path, int $orientation): void
+	{
+		$gd = imagecreatetruecolor(200, 100);
+		self::assertNotFalse($gd);
+		imagefilledrectangle($gd, 0, 0, 99, 99, (int) imagecolorallocate($gd, 255, 0, 0));
+		ob_start();
+		imagejpeg($gd);
+		$jpeg = (string) ob_get_clean();
+
+		$tiff = 'MM' . pack('n', 42) . pack('N', 8) // big endian TIFF header, IFD0 at offset 8
+			. pack('n', 1) // 1 entry
+			. pack('nnN', 0x0112, 3, 1) . pack('nn', $orientation, 0) // Orientation, SHORT, count 1, value
+			. pack('N', 0); // no next IFD
+		$app1 = "Exif\0\0" . $tiff;
+
+		FileSystem::write($path, substr($jpeg, 0, 2) . "\xFF\xE1" . pack('n', strlen($app1) + 2) . $app1 . substr($jpeg, 2));
+	}
+
+
 	public function testJxlSourceRefusedWithoutServerSupport(): void
 	{
 		// GD can't read JXL, the source is refused before it is opened

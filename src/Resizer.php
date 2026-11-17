@@ -7,6 +7,8 @@ use Imagine\Exception\RuntimeException as ImagineRuntimeException;
 use Imagine\Image\AbstractImagine;
 use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Imagine\Imagick\Image as ImagickImage;
+use Imagick;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
@@ -98,8 +100,11 @@ final class Resizer implements IResizer
 			$thumbnail->strip();
 		}
 
-		// use progressive/interlace mode?
-		if ($this->config->isInterlace()) {
+		// progressive JPEG; PNG interlacing (Adam7) makes files bigger, WEBP/AVIF/JXL ignore it
+		if (
+			$this->config->isInterlace()
+			&& in_array(strtolower(pathinfo($thumbnailPath, PATHINFO_EXTENSION)), self::FORMAT_SUFFIXES_JPG, true)
+		) {
 			$thumbnail->interlace(ImageInterface::INTERLACE_LINE);
 		}
 
@@ -238,6 +243,9 @@ final class Resizer implements IResizer
 	): ImageInterface {
 		$image = $this->imagine->open($imagePathFull);
 
+		// before the size is read - a rotation by 90° swaps the dimensions
+		$this->autoOrient($image);
+
 		$imageCurSize = $image->getSize();
 
 		$sourceDimensions = new Dimensions(
@@ -261,5 +269,44 @@ final class Resizer implements IResizer
 		}
 
 		return $image;
+	}
+
+
+	/**
+	 * Rotates/flips the image by its EXIF orientation (photos from phones and cameras), the tag itself
+	 * is removed by strip() or reset, so the image is never rotated twice. The orientation is read
+	 * from the EXIF metadata (needs ext-exif), Imagick reads it on its own as a fallback.
+	 * Same transformations as Imagine\Filter\Basic\Autorotate.
+	 */
+	private function autoOrient(ImageInterface $image): void
+	{
+		$orientation = $image->metadata()['ifd0.Orientation'] ?? null;
+		$imagick = $image instanceof ImagickImage ? $image->getImagick() : null;
+
+		if ($orientation === null && $imagick !== null) {
+			$orientation = $imagick->getImageOrientation();
+		}
+
+		[$flip, $angle] = match (is_numeric($orientation) ? (int) $orientation : 0) {
+			2 => [true, 0], // top-right
+			3 => [false, 180], // bottom-right
+			4 => [true, 180], // bottom-left
+			5 => [true, -90], // left-top
+			6 => [false, 90], // right-top
+			7 => [true, 90], // right-bottom
+			8 => [false, -90], // left-bottom
+			default => [false, 0], // top-left or unknown
+		};
+
+		if ($flip) {
+			$image->flipHorizontally();
+		}
+
+		if ($angle !== 0) {
+			$image->rotate($angle);
+		}
+
+		// the pixels are upright now, metadata kept with strip: false must not rotate the image again
+		$imagick?->setImageOrientation(Imagick::ORIENTATION_TOPLEFT);
 	}
 }

@@ -2,6 +2,7 @@
 
 - PHP 8.5+, Nette 3.3+, Latte 3.1+
 - ext-fileinfo and one of ext-imagick (recommended), ext-gd, ext-gmagick
+- ext-exif recommended with GD/Gmagick: photos are rotated by their EXIF orientation (Imagick reads it on its own)
 
 # Installation
 
@@ -24,7 +25,7 @@
 	Other options with their defaults:
 	``` neon
 	resizer:
-		interlace: true # for progressive JPEGs
+		interlace: true # progressive JPEGs (other formats are never interlaced, it makes PNGs bigger)
  		strip: true # removes image metadata, color profiles etc.
 		cache: '/resizer/'
 		publicCacheDir: null # e.g. %wwwDir%/cache/ir - enables the static mode, see below
