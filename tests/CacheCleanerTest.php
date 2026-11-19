@@ -82,6 +82,19 @@ class CacheCleanerTest extends TestCase
 	}
 
 
+	public function testStaticModeCleansProtectedCacheToo(): void
+	{
+		// in static mode thumbnails of protected images are in the non-public cache directory (tempDir + cache)
+		self::write(self::PUBLIC_DIR . '/ir/_public/deleted.png/x100.png', time());
+
+		$result = $this->createCleaner(publicCacheDir: self::PUBLIC_DIR . '/ir')->clean();
+
+		$this->assertSame(2, $result->orphaned);
+		$this->assertFileDoesNotExist(self::PUBLIC_DIR . '/ir/_public/deleted.png/x100.png');
+		$this->assertFileDoesNotExist(self::CACHE_DIR . '/_public/deleted.png/c10xc10.jpg');
+	}
+
+
 	public function testCleanWithoutMaxAge(): void
 	{
 		$result = $this->createCleaner()->clean();
@@ -153,13 +166,14 @@ class CacheCleanerTest extends TestCase
 	}
 
 
-	private function createCleaner(?string $tempDir = null, string $cache = '/resizer-clean/'): CacheCleaner
+	private function createCleaner(?string $tempDir = null, string $cache = '/resizer-clean/', ?string $publicCacheDir = null): CacheCleaner
 	{
 		$dto = new ResizerConfigDTO;
 		$dto->tempDir = $tempDir ?? self::TEMP_DIR;
 		$dto->wwwDir = __DIR__;
 		$dto->library = 'Gd';
 		$dto->cache = $cache;
+		$dto->publicCacheDir = $publicCacheDir;
 
 		return new CacheCleaner(new ResizerConfig($dto));
 	}

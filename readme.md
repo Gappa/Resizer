@@ -44,6 +44,7 @@
 		sendfile: null # x-sendfile | x-accel-redirect - the web server sends the files, see below
 		sendfileInternalUri: null # x-accel-redirect: internal nginx location of the cache directory, e.g. /_resizer/
 		secret: null # at least 32 characters, enables signed URLs, see below
+		protectedMaxAge: 0 # seconds browsers may cache an allowed protected image, see Restricting access
 		upgradeJpg2Webp: true # automatically convert JPEGs to WEBP when the format is supported by the browser & server
 		upgradeJpg2Avif: true # automatically convert JPEGs to AVIF when the format is supported by the browser & server
 		upgradePng2Webp: true # automatically convert PNGs to WEBP when the format is supported by the browser & server
@@ -275,6 +276,81 @@ resizer:
 - Changing the secret invalidates all dynamic URLs in the wild (cached pages, e-mails), static files keep working.
 - Generate the secret e.g. with `php -r "echo bin2hex(random_bytes(32));"`.
 
+# Restricting access
+
+Images can be restricted e.g. to logged-in users by access policies - services implementing
+`Nelson\Resizer\Access\AccessPolicy`, found by type (no config needed, any number of them):
+
+``` php
+use Nelson\Resizer\Access\AccessDecision;
+use Nelson\Resizer\Access\AccessPolicy;
+
+final class ArchiveAccessPolicy implements AccessPolicy
+{
+	public function __construct(
+		private readonly Nette\Security\User $user,
+	) {
+	}
+
+
+	// must not depend on the user: it decides where the thumbnails are cached
+	public function protects(string $file): bool
+	{
+		return str_starts_with($file, 'storage/Archive_Document/');
+	}
+
+
+	// called for protected files only
+	public function decide(string $file): AccessDecision
+	{
+		return $this->user->isLoggedIn()
+			? AccessDecision::allow()
+			: AccessDecision::replace('assets/img/locked.png');
+	}
+}
+```
+
+``` neon
+services:
+	- ArchiveAccessPolicy
+```
+
+- `AccessDecision::allow()` - the image is served with `Cache-Control: private` (never stored by CDNs or proxies),
+  browsers revalidate it every time by default (a cheap 304), so a logout takes effect immediately.
+  `protectedMaxAge` lets browsers keep it for the given number of seconds.
+- `AccessDecision::deny()` - HTTP 404 (does not reveal the image exists), `deny(403)` for HTTP 403.
+- `AccessDecision::replace($file)` - another image (e.g. a lock icon, or random placeholders on a dev machine without
+  the real files) is served instead, resized with the same params, so the layout is kept. It is not checked
+  by the policies and its signature is not needed. Revalidated every time, the real image is shown right after a login.
+- Paths are relative to `wwwDir` without a leading slash, as requested. Non-canonical paths (`a//b`, `./a`, `..`)
+  are refused by the resizer, so comparing prefixes is safe. Compare case-sensitively.
+- When more policies protect a file, the most restrictive decision wins (deny > replace > allow).
+- Links do not change (`{rlink}` etc.), the presenter checks the access on every request. The session is kept open
+  until the policies decide (the presenter closes it as soon as possible otherwise).
+- Static mode: thumbnails of protected images are never written to `publicCacheDir` (the web server would serve them
+  to anyone), they go to the non-public cache directory (`tempDir` + `cache`) and are always linked through the
+  presenter. With `x-accel-redirect` PHP sends them (the internal location points to the public cache), `x-sendfile`
+  works when `XSendFilePath` allows the non-public cache directory too. Placeholders of protected images are cached
+  there as well.
+
+**The source images must not be accessible directly.** The resizer reads them from the filesystem, but the web server
+serves anything in `wwwDir` - deny the directories of protected images:
+
+``` apache
+# www/storage/Archive_Document/.htaccess
+Require all denied
+```
+
+``` nginx
+location /storage/Archive_Document/ {
+	deny all;
+}
+```
+
+Before protecting existing images in static mode, delete their thumbnails in `publicCacheDir` - existing files are
+served by the web server without asking PHP. Images used outside the resizer (rich text with direct links to
+the sources, structured data, ...) are not protected by the policies.
+
 # Relative and absolute URLs
 
 Relative:
@@ -349,12 +425,21 @@ $placeholderGenerator->warmUp($file, 'c800xc450');
 # Security
 
 - Only `jpg`, `jpeg`, `jfif`, `png`, `gif`, `webp`, `avif` and `jxl` source images inside `wwwDir` are processed, the MIME type
-  is checked too. Paths with `..` segments, backslashes or NUL bytes are refused. Symlinks inside `wwwDir` are followed.
+  is checked too. Paths with `..` or `.` segments, empty segments (`a//b`), backslashes or control characters
+  are refused. Symlinks inside `wwwDir` are followed.
+- Access to images can be restricted by access policies, see Restricting access.
 - Requested dimensions are limited by `maxWidth`/`maxHeight` (default 4000 px, max. 5 digits in the URL).
 - Invalid requests get HTTP 400, missing images HTTP 404, without details of the error.
 - Every params combination creates a new cached file. Enable signed URLs (`secret`), so only the params
   used by the application can be requested.
 - With Imagick, a restrictive ImageMagick `policy.xml` (resource limits, disabled coders) is recommended as well.
+
+# Upgrading to 9.1
+
+- Image paths with `.` segments or empty segments (`./a.jpg`, `a//b.jpg`, `a.jpg/`) are refused (HTTP 400),
+  a leading slash is still allowed.
+- New optional constructor argument `AccessGuard` of `Resizer`, `ResizerLinkGenerator` and `ResizePresenter`
+  (autowired in DI).
 
 # Upgrading to 9.x
 

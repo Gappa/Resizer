@@ -98,7 +98,27 @@ final class ResizerConfig
 	 */
 	public function getCacheDir(): string
 	{
-		return $this->getPublicCacheDir() ?? $this->config->tempDir . $this->config->cache;
+		return $this->getPublicCacheDir() ?? $this->getProtectedCacheDir();
+	}
+
+
+	/**
+	 * Directory of the thumbnails of protected images (see AccessPolicy), with a trailing slash.
+	 * Always the non-public one (tempDir + cache), the same as getCacheDir() when static mode is off.
+	 */
+	public function getProtectedCacheDir(): string
+	{
+		return $this->config->tempDir . $this->config->cache;
+	}
+
+
+	/**
+	 * How long browsers may cache an allowed protected image (seconds), 0 = revalidate every time.
+	 * @return int<0, max>
+	 */
+	public function getProtectedMaxAge(): int
+	{
+		return $this->config->protectedMaxAge;
 	}
 
 

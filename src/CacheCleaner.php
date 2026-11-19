@@ -32,10 +32,19 @@ final class CacheCleaner
 	public function clean(bool $dryRun = false, ?int $maxAge = null): CleanupResult
 	{
 		$result = new CleanupResult($dryRun);
-		$cacheDir = realpath($this->config->getCacheDir());
 		$wwwDir = realpath($this->config->getWwwDir());
 
-		if ($cacheDir !== false && $wwwDir !== false && $cacheDir !== $wwwDir) {
+		// in static mode thumbnails of protected images are in the non-public cache directory
+		$cacheDirs = array_unique(array_filter([
+			realpath($this->config->getCacheDir()),
+			realpath($this->config->getProtectedCacheDir()),
+		]));
+
+		foreach ($cacheDirs as $cacheDir) {
+			if ($wwwDir === false || $cacheDir === $wwwDir) {
+				continue;
+			}
+
 			$this->cleanThumbnails($result, $cacheDir, $wwwDir, $maxAge);
 
 			if (!$dryRun) {

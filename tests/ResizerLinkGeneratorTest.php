@@ -6,6 +6,8 @@ namespace Nelson\Resizer\Tests;
 use Exception;
 use Latte\Engine;
 use Latte\Loaders\StringLoader;
+use Nelson\Resizer\Access\AccessDecision;
+use Nelson\Resizer\Access\AccessGuard;
 use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nelson\Resizer\Latte\ResizerExtension;
 use Nelson\Resizer\OutputFormat;
@@ -91,6 +93,46 @@ class ResizerLinkGeneratorTest extends TestCase
 
 		// a different format has not been generated yet
 		$this->assertNull($generator->getStaticUrl(self::IMAGE, 'c100xc100', 'png'));
+	}
+
+
+	public function testProtectedImageIsNotInPublicCache(): void
+	{
+		$guard = new AccessGuard([new FakeAccessPolicy('fixtures/', AccessDecision::allow())]);
+		[$generator, $resizer] = $this->create(self::PUBLIC_DIR, accessGuard: $guard);
+		$protectedCache = __DIR__ . '/../temp/resizer/fixtures/test.png';
+
+		try {
+			$thumbnail = $resizer->process(self::IMAGE, 'c100xc100', 'png');
+
+			// the web server would serve a thumbnail in the public cache to anyone
+			$this->assertSame(
+				FileSystem::normalizePath($protectedCache . '/c100xc100.png'),
+				FileSystem::normalizePath($thumbnail),
+			);
+			$this->assertDirectoryDoesNotExist(self::PUBLIC_DIR . '/fixtures');
+
+			// links go to the resize presenter, which checks the access
+			$this->assertNull($generator->getStaticUrl(self::IMAGE, 'c100xc100', 'png'));
+			$this->assertSame('/ir/c100xc100/fixtures/test.png?format=png', $generator->link($this->createLinkStub(), self::IMAGE, 'c100xc100', 'png'));
+
+			// the tiny thumbnail of a placeholder too
+			$generator->getPlaceholderStyle(self::IMAGE, 'c100xc100');
+			$this->assertNotEmpty(glob($protectedCache . '/*-q40.*'));
+			$this->assertDirectoryDoesNotExist(self::PUBLIC_DIR . '/fixtures');
+		} finally {
+			FileSystem::delete($protectedCache);
+		}
+	}
+
+
+	public function testPublicImageWithPolicies(): void
+	{
+		$guard = new AccessGuard([new FakeAccessPolicy('storage/', AccessDecision::deny())]);
+		[$generator, $resizer] = $this->create(self::PUBLIC_DIR, accessGuard: $guard);
+		$resizer->process(self::IMAGE, 'c100xc100', 'png');
+
+		$this->assertSame('/web/_public/ir/fixtures/test.png/c100xc100.png', $generator->getStaticUrl(self::IMAGE, 'c100xc100', 'png'));
 	}
 
 
@@ -689,15 +731,28 @@ class ResizerLinkGeneratorTest extends TestCase
 	 * @param array<string, mixed> $overrides ResizerConfigDTO properties
 	 * @return array{ResizerLinkGenerator, Resizer}
 	 */
-	private function create(?string $publicCacheDir, bool $webp = false, ?string $secret = null, array $overrides = []): array
-	{
+	private function create(
+		?string $publicCacheDir,
+		bool $webp = false,
+		?string $secret = null,
+		array $overrides = [],
+		?AccessGuard $accessGuard = null,
+	): array {
 		$config = $this->getConfig($publicCacheDir, $webp, $secret, $overrides);
 		$httpRequest = new Request(new UrlScript('https://example.com/web/index.php', '/web/index.php'));
 		$outputFormat = new OutputFormat($httpRequest, $config);
-		$resizer = new Resizer($config, $outputFormat);
+		$resizer = new Resizer($config, $outputFormat, $accessGuard);
 
 		return [
-			new ResizerLinkGenerator($config, $outputFormat, $resizer, $httpRequest, new UrlSigner($config), new PlaceholderGenerator($resizer, $config)),
+			new ResizerLinkGenerator(
+				$config,
+				$outputFormat,
+				$resizer,
+				$httpRequest,
+				new UrlSigner($config),
+				new PlaceholderGenerator($resizer, $config),
+				$accessGuard,
+			),
 			$resizer,
 		];
 	}

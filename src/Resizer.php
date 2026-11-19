@@ -5,6 +5,7 @@ namespace Nelson\Resizer;
 
 use Imagine\Exception\RuntimeException as ImagineRuntimeException;
 use Imagine\Image\AbstractImagine;
+use Nelson\Resizer\Access\AccessGuard;
 use Nelson\Resizer\Exceptions\CouldNotParseResizerParamsException;
 use Nelson\Resizer\Exceptions\DimensionsTooLargeException;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
@@ -65,6 +66,7 @@ final class Resizer implements IResizer
 	public const array SOURCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/jxl'];
 
 	private string $cacheDir;
+	private string $protectedCacheDir;
 	private ImageProcessor $processor;
 	private ThumbnailWriter $writer;
 	private SourceDimensionsReader $dimensionsReader;
@@ -73,8 +75,10 @@ final class Resizer implements IResizer
 	public function __construct(
 		private readonly ResizerConfig $config,
 		private readonly OutputFormat $outputFormat,
+		private readonly ?AccessGuard $accessGuard = null,
 	) {
 		$this->cacheDir = $this->config->getCacheDir();
+		$this->protectedCacheDir = $this->config->getProtectedCacheDir();
 		FileSystem::createDir($this->cacheDir);
 
 		/** @var class-string<AbstractImagine> $library */
@@ -163,6 +167,7 @@ final class Resizer implements IResizer
 
 	/**
 	 * Path of the thumbnail in the cache directory. Does not check whether it exists.
+	 * Thumbnails of protected images (see AccessPolicy) are always in the non-public cache directory.
 	 */
 	public function getThumbnailPath(
 		string $path,
@@ -175,7 +180,9 @@ final class Resizer implements IResizer
 			throw new CouldNotParseResizerParamsException('Wrong params format.');
 		}
 
-		return $this->cacheDir . ltrim($path, '/') . DIRECTORY_SEPARATOR
+		$cacheDir = $this->accessGuard?->isProtected($path) === true ? $this->protectedCacheDir : $this->cacheDir;
+
+		return $cacheDir . ltrim($path, '/') . DIRECTORY_SEPARATOR
 			. $params . '.' . $this->outputFormat->getOutputFormat($path, $format);
 	}
 
@@ -214,15 +221,21 @@ final class Resizer implements IResizer
 
 	/**
 	 * Refuses traversal ("..") segments, control characters (NUL, line breaks) and backslashes (a path separator on Windows).
+	 * Non-canonical paths ("a//b", "./a", "a/") are refused too - they lead to the same file under another name,
+	 * which would bypass access policies comparing path prefixes.
 	 * Symlinks inside wwwDir are intentionally allowed (e.g. shared storage in deployments).
 	 */
 	private function assertSafePath(string $path): void
 	{
+		$segments = explode('/', ltrim($path, '/'));
+
 		if (
 			$path === ''
 			|| preg_match('~[\x00-\x1F\x7F]~', $path) === 1 // NUL, line breaks (the path goes to headers with sendfile)
 			|| str_contains($path, '\\')
-			|| in_array('..', explode('/', $path), true)
+			|| in_array('..', $segments, true)
+			|| in_array('.', $segments, true)
+			|| in_array('', $segments, true)
 		) {
 			throw new SecurityException('Attempt to access files outside permitted path.');
 		}

@@ -6,6 +6,8 @@ namespace Nelson\Resizer\DI;
 use Exception;
 use Gmagick;
 use Imagick;
+use Nelson\Resizer\Access\AccessGuard;
+use Nelson\Resizer\Access\AccessPolicy;
 use Nelson\Resizer\CacheCleaner;
 use Nelson\Resizer\Console\CleanCacheCommand;
 use Nelson\Resizer\Latte\ResizerExtension as LatteResizerExtension;
@@ -19,6 +21,7 @@ use Nelson\Resizer\UrlSigner;
 use Nette\Application\IPresenterFactory;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\FactoryDefinition;
+use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\ServiceDefinition;
 use Nette\DI\Definitions\Statement;
 use Nette\Schema\Expect;
@@ -53,6 +56,7 @@ final class ResizerExtension extends CompilerExtension
 			'sendfile' => Expect::anyOf(ResizerConfig::SENDFILE_X_SENDFILE, ResizerConfig::SENDFILE_X_ACCEL_REDIRECT, null)->default(null),
 			'maxAnimationPixels' => Expect::int(25_000_000)->min(1),
 			'placeholderBudget' => Expect::int(10)->min(0),
+			'protectedMaxAge' => Expect::int(0)->min(0),
 			'maxWidth' => Expect::int(4000)->min(1),
 			'maxHeight' => Expect::int(4000)->min(1),
 		]);
@@ -74,6 +78,10 @@ final class ResizerExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('output.format'))
 			->setFactory(OutputFormat::class);
+
+		// the AccessPolicy services are added in beforeCompile(), when all services are registered
+		$builder->addDefinition($this->prefix('accessGuard'))
+			->setFactory(AccessGuard::class);
 
 		$builder->addDefinition($this->prefix('default'))
 			->setType(Resizer::class);
@@ -104,6 +112,13 @@ final class ResizerExtension extends CompilerExtension
 	public function beforeCompile(): void
 	{
 		$builder = $this->getContainerBuilder();
+
+		/** @var ServiceDefinition $accessGuard */
+		$accessGuard = $builder->getDefinition($this->prefix('accessGuard'));
+		$accessGuard->setArgument('policies', array_map(
+			static fn(int|string $name): Reference => new Reference((string) $name), // anonymous services have numeric names
+			array_keys($builder->findByType(AccessPolicy::class)),
+		));
 
 		$latteFactoryDef = $this->getLatteFactoryDefinition();
 		$latteFactoryDef->addSetup('addExtension', [

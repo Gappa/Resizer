@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Presenters;
 
+use Nelson\Resizer\Access\AccessGuard;
 use Nelson\Resizer\Exceptions\ImageNotFoundOrReadableException;
 use Nelson\Resizer\Exceptions\ResizerException;
 use Nelson\Resizer\IResizer;
@@ -24,6 +25,7 @@ final class ResizePresenter extends Presenter
 		private readonly IResizer $resizer,
 		private readonly UrlSigner $urlSigner,
 		private readonly ResizerConfig $config,
+		private readonly ?AccessGuard $accessGuard = null,
 	) {
 		parent::__construct();
 	}
@@ -33,15 +35,10 @@ final class ResizePresenter extends Presenter
 	{
 		parent::startup();
 
-		// image responses do not need the session, release its lock as soon as possible
-		try {
-			$session = $this->getSession();
-		} catch (InvalidStateException) {
-			return; // the application does not use sessions
-		}
-
-		if ($session->isStarted()) {
-			$session->close();
+		// image responses do not need the session, release its lock as soon as possible;
+		// access policies may need it (the logged-in user), it is released after their decision
+		if ($this->accessGuard?->hasPolicies() !== true) {
+			$this->releaseSession();
 		}
 	}
 
@@ -56,8 +53,18 @@ final class ResizePresenter extends Presenter
 			$this->error('Invalid signature.', IResponse::S403_Forbidden);
 		}
 
+		$access = $this->accessGuard?->decide($file);
+		$this->releaseSession();
+
+		if ($access?->isDenied() === true) {
+			$this->error($access->code === IResponse::S404_NotFound ? 'Image not found.' : 'Access denied.', $access->code);
+		}
+
+		// the replacement is resized with the same params, its signature is not needed
+		$servedFile = $access?->replacement ?? $file;
+
 		try {
-			$image = $this->resizer->process($file, $params, $format);
+			$image = $this->resizer->process($servedFile, $params, $format);
 		} catch (ImageNotFoundOrReadableException) {
 			$this->error('Image not found.');
 		} catch (ResizerException) {
@@ -75,7 +82,16 @@ final class ResizePresenter extends Presenter
 			$httpResponse->addHeader('Vary', 'Accept');
 		}
 
-		$httpResponse->setExpiration('1 year');
+		if ($access === null) {
+			$httpResponse->setExpiration('1 year');
+		} else {
+			// the response depends on the user: never stored by shared caches (CDN, proxies);
+			// a replacement is revalidated every time, so the real image is shown right after a login
+			$maxAge = $access->isAllowed() ? $this->config->getProtectedMaxAge() : 0;
+			$httpResponse->setHeader('Cache-Control', $maxAge > 0 ? 'private, max-age=' . $maxAge : 'private, no-cache');
+			$httpResponse->setHeader('Expires', null);
+			$httpResponse->setHeader('Pragma', null);
+		}
 
 		$lastModified = (int) filemtime($image);
 		$etag = md5($image . '|' . $lastModified . '|' . filesize($image));
@@ -85,8 +101,22 @@ final class ResizePresenter extends Presenter
 			$this->sendResponse(new TextResponse(''));
 		}
 
-		$name = pathinfo($file, PATHINFO_FILENAME) . '.' . pathinfo($image, PATHINFO_EXTENSION);
+		$name = pathinfo($servedFile, PATHINFO_FILENAME) . '.' . pathinfo($image, PATHINFO_EXTENSION);
 		$this->sendResponse($this->createFileResponse($image, $name, $this->getMimeType($image)));
+	}
+
+
+	private function releaseSession(): void
+	{
+		try {
+			$session = $this->getSession();
+		} catch (InvalidStateException) {
+			return; // the application does not use sessions
+		}
+
+		if ($session->isStarted()) {
+			$session->close();
+		}
 	}
 
 

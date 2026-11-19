@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace Nelson\Resizer\Tests;
 
+use Nelson\Resizer\Access\AccessDecision;
+use Nelson\Resizer\Access\AccessGuard;
+use Nelson\Resizer\Access\AccessPolicy;
 use Nelson\Resizer\DI\ResizerConfigDTO;
 use Nelson\Resizer\OutputFormat;
 use Nelson\Resizer\Presenters\ResizePresenter;
@@ -26,6 +29,8 @@ class ResizePresenterTest extends TestCase
 {
 	private const string IMAGE = 'fixtures/test.png';
 	private const string TEMP_DIR = __DIR__ . '/../temp';
+	private const string PUBLIC_DIR = __DIR__ . '/_public';
+	private const string REPLACEMENT = '_public/locked.png';
 
 	private RecordingHttpResponse $httpResponse;
 
@@ -41,6 +46,7 @@ class ResizePresenterTest extends TestCase
 	{
 		parent::tearDown();
 		FileSystem::delete(self::TEMP_DIR . '/resizer');
+		FileSystem::delete(self::PUBLIC_DIR);
 	}
 
 
@@ -261,6 +267,135 @@ class ResizePresenterTest extends TestCase
 	}
 
 
+	public function testPublicFileWithPolicies(): void
+	{
+		$policy = new FakeAccessPolicy('storage/', AccessDecision::deny());
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy]);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+		$this->assertSame([], $policy->decided);
+		$this->assertStringStartsWith('max-age=', (string) $this->httpResponse->getHeader('Cache-Control'));
+	}
+
+
+	public function testProtectedAllowed(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::allow());
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy]);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+		$this->assertSame('test.png', $response->getName());
+		$this->assertSame([self::IMAGE], $policy->decided);
+		// never stored by shared caches, revalidated by browsers (a logout takes effect)
+		$this->assertSame('private, no-cache', $this->httpResponse->getHeader('Cache-Control'));
+		$this->assertNull($this->httpResponse->getHeader('Expires'));
+		$this->assertNotNull($this->httpResponse->getHeader('ETag'));
+	}
+
+
+	public function testProtectedMaxAge(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::allow());
+		$this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy], protectedMaxAge: 600);
+
+		$this->assertSame('private, max-age=600', $this->httpResponse->getHeader('Cache-Control'));
+	}
+
+
+	public function testProtectedNotModified(): void
+	{
+		$policies = [new FakeAccessPolicy('fixtures/', AccessDecision::allow())];
+		$this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], policies: $policies);
+		$etag = (string) $this->httpResponse->getHeader('ETag');
+
+		$this->httpResponse = new RecordingHttpResponse;
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'x50'], headers: ['If-None-Match' => $etag], policies: $policies);
+
+		$this->assertInstanceOf(TextResponse::class, $response);
+		$this->assertSame(IResponse::S304_NotModified, $this->httpResponse->getCode());
+	}
+
+
+	public function testProtectedDenied(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::deny());
+		$this->assertError(IResponse::S404_NotFound, 'Image not found.', ['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy]);
+		// nothing is generated for a denied request
+		$this->assertDirectoryDoesNotExist(self::TEMP_DIR . '/resizer/fixtures/test.png');
+	}
+
+
+	public function testProtectedDeniedWith403(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::deny(IResponse::S403_Forbidden));
+		$this->assertError(IResponse::S403_Forbidden, 'Access denied.', ['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy]);
+	}
+
+
+	public function testProtectedDeniedWithNotModified(): void
+	{
+		// a cached ETag does not bypass the decision
+		$this->runPresenter(['file' => self::IMAGE, 'params' => 'x50']);
+		$etag = (string) $this->httpResponse->getHeader('ETag');
+
+		$this->httpResponse = new RecordingHttpResponse;
+		$this->expectException(BadRequestException::class);
+		$this->runPresenter(
+			['file' => self::IMAGE, 'params' => 'x50'],
+			headers: ['If-None-Match' => $etag],
+			policies: [new FakeAccessPolicy('fixtures/', AccessDecision::deny())],
+		);
+	}
+
+
+	public function testProtectedReplaced(): void
+	{
+		$image = imagecreatetruecolor(300, 300);
+		self::assertNotFalse($image);
+		FileSystem::createDir(self::PUBLIC_DIR);
+		imagepng($image, self::PUBLIC_DIR . '/locked.png');
+
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::replace(self::REPLACEMENT));
+		$response = $this->runPresenter(['file' => self::IMAGE, 'params' => 'c40xc20'], policies: [$policy]);
+
+		$this->assertInstanceOf(FileResponse::class, $response);
+		$this->assertSame('locked.png', $response->getName());
+		// resized with the same params, the layout is kept
+		$this->assertSame([40, 20], array_slice((array) getimagesize($response->getFile()), 0, 2));
+		$this->assertStringContainsString('/_public/locked.png/', strtr($response->getFile(), '\\', '/'));
+		// the real image is shown right after a login
+		$this->assertSame('private, no-cache', $this->httpResponse->getHeader('Cache-Control'));
+	}
+
+
+	public function testMissingReplacementIs404(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::replace('_public/does-not-exist.png'));
+		$this->assertError(IResponse::S404_NotFound, 'Image not found.', ['file' => self::IMAGE, 'params' => 'x50'], policies: [$policy]);
+	}
+
+
+	public function testProtectedInStaticMode(): void
+	{
+		$policy = new FakeAccessPolicy('fixtures/', AccessDecision::allow());
+		$response = $this->runPresenter(
+			['file' => self::IMAGE, 'params' => 'x50'],
+			sendfile: 'x-accel-redirect',
+			sendfileInternalUri: '/_resizer/',
+			policies: [$policy],
+			publicCacheDir: self::PUBLIC_DIR . '/ir',
+		);
+
+		// not in the public cache (the web server would serve it to anyone), so PHP sends it
+		$this->assertInstanceOf(FileResponse::class, $response);
+		$this->assertSame(
+			FileSystem::normalizePath(self::TEMP_DIR . '/resizer/fixtures/test.png/x50.png'),
+			FileSystem::normalizePath($response->getFile()),
+		);
+		$this->assertDirectoryDoesNotExist(self::PUBLIC_DIR . '/ir/fixtures');
+	}
+
+
 	private function createSigner(): UrlSigner
 	{
 		$config = new ResizerConfigDTO;
@@ -273,11 +408,14 @@ class ResizePresenterTest extends TestCase
 	}
 
 
-	/** @param array<string, string> $params */
-	private function assertError(int $code, string $message, array $params, ?string $secret = null): void
+	/**
+	 * @param array<string, string> $params
+	 * @param list<AccessPolicy> $policies
+	 */
+	private function assertError(int $code, string $message, array $params, ?string $secret = null, array $policies = []): void
 	{
 		try {
-			$this->runPresenter($params, secret: $secret);
+			$this->runPresenter($params, secret: $secret, policies: $policies);
 			$this->fail('BadRequestException expected.');
 		} catch (BadRequestException $e) {
 			$this->assertSame($code, $e->getCode());
@@ -297,6 +435,8 @@ class ResizePresenterTest extends TestCase
 	/**
 	 * @param array<string, string> $params
 	 * @param array<string, string> $headers
+	 * @param list<AccessPolicy> $policies
+	 * @param int<0, max> $protectedMaxAge
 	 */
 	private function runPresenter(
 		array $params,
@@ -305,6 +445,9 @@ class ResizePresenterTest extends TestCase
 		?string $secret = null,
 		?string $sendfile = null,
 		?string $sendfileInternalUri = null,
+		array $policies = [],
+		int $protectedMaxAge = 0,
+		?string $publicCacheDir = null,
 	): Response {
 		$httpRequest = new Request(
 			new UrlScript('https://example.com/ir/x50/fixtures/test.png', '/index.php'),
@@ -319,12 +462,16 @@ class ResizePresenterTest extends TestCase
 		$config->secret = $secret;
 		$config->sendfile = $sendfile;
 		$config->sendfileInternalUri = $sendfileInternalUri;
+		$config->protectedMaxAge = $protectedMaxAge;
+		$config->publicCacheDir = $publicCacheDir;
 		$resizerConfig = new ResizerConfig($config);
+		$accessGuard = new AccessGuard($policies);
 
 		$presenter = new ResizePresenter(
-			new Resizer($resizerConfig, new OutputFormat($httpRequest, $resizerConfig)),
+			new Resizer($resizerConfig, new OutputFormat($httpRequest, $resizerConfig), $accessGuard),
 			new UrlSigner($resizerConfig),
 			$resizerConfig,
+			$accessGuard,
 		);
 		$presenter->injectPrimary($httpRequest, $this->httpResponse);
 		$presenter->autoCanonicalize = false; // no router in the test
